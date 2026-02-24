@@ -6,39 +6,47 @@ interface ValidationResult {
   errorKo?: string;
 }
 
-const LEVEL_PERMISSIONS: Record<Level, { blocked: RegExp[]; blockedMessage: { ko: string; en: string } }> = {
+const LEVEL_PERMISSIONS: Record<Level, { blocked: RegExp[]; blockedMessage: { ko: string; en: string }; allowMultiStatement?: boolean }> = {
   beginner: {
+    // 초보: SELECT + 기본 DML (INSERT, UPDATE, DELETE) 허용. DDL/권한/트랜잭션 차단.
     blocked: [
-      /\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b/i,
+      /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
+      /\b(ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b/i,
+      /\b(BEGIN|COMMIT|ROLLBACK|START\s+TRANSACTION)\b/i,
     ],
     blockedMessage: {
-      ko: '초보 레벨에서는 SELECT 문만 사용할 수 있습니다.',
-      en: 'Only SELECT statements are allowed at the Beginner level.',
+      ko: '초보 레벨에서는 SELECT, INSERT, UPDATE, DELETE만 사용할 수 있습니다.',
+      en: 'Only SELECT, INSERT, UPDATE, DELETE are allowed at the Beginner level.',
     },
   },
   intermediate: {
+    // 중급: SELECT + DML (INSERT, UPDATE, DELETE) 허용. DDL/권한 차단.
     blocked: [
-      /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX)\b/i,
+      /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
       /\b(ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b/i,
+      /\b(BEGIN|COMMIT|ROLLBACK|START\s+TRANSACTION)\b/i,
     ],
     blockedMessage: {
-      ko: '중급 레벨에서는 해당 SQL 명령어를 사용할 수 없습니다.',
-      en: 'This SQL command is not allowed at the Intermediate level.',
+      ko: '중급 레벨에서는 SELECT, INSERT, UPDATE, DELETE만 사용할 수 있습니다.',
+      en: 'Only SELECT, INSERT, UPDATE, DELETE are allowed at the Intermediate level.',
     },
   },
   advanced: {
+    // 고급: SELECT + DML + DDL (CREATE TABLE/VIEW/INDEX, ALTER TABLE) 허용. 권한/DROP DATABASE 차단.
     blocked: [
       /\bDROP\s+DATABASE\b/i,
       /\bTRUNCATE\b/i,
       /\b(GRANT|REVOKE)\b/i,
     ],
     blockedMessage: {
-      ko: '고급 레벨에서는 해당 SQL 명령어를 사용할 수 없습니다.',
-      en: 'This SQL command is not allowed at the Advanced level.',
+      ko: '고급 레벨에서는 GRANT, REVOKE, TRUNCATE, DROP DATABASE를 사용할 수 없습니다.',
+      en: 'GRANT, REVOKE, TRUNCATE, and DROP DATABASE are not allowed at the Advanced level.',
     },
   },
   expert: {
+    // 전문가: 거의 모든 것 허용. DROP DATABASE만 차단. 트랜잭션(multi-statement) 허용.
     blocked: [/\bDROP\s+DATABASE\b/i],
+    allowMultiStatement: true,
     blockedMessage: {
       ko: 'DROP DATABASE는 사용할 수 없습니다.',
       en: 'DROP DATABASE is not allowed.',
@@ -57,13 +65,15 @@ export function validateSQL(sql: string, level: Level): ValidationResult {
     };
   }
 
-  // Check for multiple statements (basic check)
+  const permissions = LEVEL_PERMISSIONS[level];
+
+  // Check for multiple statements
   const statements = trimmed
     .split(';')
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-  if (statements.length > 1) {
+  if (statements.length > 1 && !permissions.allowMultiStatement) {
     return {
       valid: false,
       error: 'Only one SQL statement is allowed at a time.',
@@ -71,15 +81,16 @@ export function validateSQL(sql: string, level: Level): ValidationResult {
     };
   }
 
-  const permissions = LEVEL_PERMISSIONS[level];
-
-  for (const pattern of permissions.blocked) {
-    if (pattern.test(trimmed)) {
-      return {
-        valid: false,
-        error: permissions.blockedMessage.en,
-        errorKo: permissions.blockedMessage.ko,
-      };
+  // Check blocked patterns against each statement
+  for (const stmt of statements) {
+    for (const pattern of permissions.blocked) {
+      if (pattern.test(stmt)) {
+        return {
+          valid: false,
+          error: permissions.blockedMessage.en,
+          errorKo: permissions.blockedMessage.ko,
+        };
+      }
     }
   }
 

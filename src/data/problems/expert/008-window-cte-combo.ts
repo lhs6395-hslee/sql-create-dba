@@ -1,0 +1,24 @@
+import type { Problem } from '@/types/problem';
+
+export const problem: Problem = {
+  id: 'expert-008', level: 'expert', order: 8,
+  title: { ko: 'CTE + Window: 월별 매출 및 성장률', en: 'CTE + Window: Monthly Sales & Growth Rate' },
+  description: {
+    ko: `CTE와 윈도우 함수를 결합하여 **월별 매출**과 **전월 대비 성장률**을 계산하세요.\n\n### 요구사항\n- \`orders\` 테이블에서 \`status = 'delivered'\`만 사용\n- CTE로 월별 매출 합계를 먼저 계산\n- LAG()로 전월 매출을 조회\n- 성장률 = (당월 - 전월) / 전월 * 100 (소수점 2자리)\n- 컬럼: \`month\`, \`monthly_sales\`, \`prev_month_sales\`, \`growth_rate\`\n- \`month\` 오름차순 정렬`,
+    en: `Combine CTE and window functions to calculate **monthly sales** and **month-over-month growth rate**.\n\n### Requirements\n- Use \`orders\` table, only \`status = 'delivered'\`\n- CTE: calculate monthly sales totals\n- LAG() for previous month's sales\n- Growth rate = (current - prev) / prev * 100 (2 decimal places)\n- Columns: \`month\`, \`monthly_sales\`, \`prev_month_sales\`, \`growth_rate\`\n- Sort by \`month\` ASC`,
+  },
+  schema: 'ecommerce', category: 'Comprehensive', difficulty: 3,
+  hints: {
+    ko: ['TO_CHAR(order_date, \'YYYY-MM\')로 월을 추출합니다.', 'CTE에서 GROUP BY로 월별 합계를 구하고, 메인 쿼리에서 LAG()를 사용합니다.', "WITH monthly AS (SELECT TO_CHAR(order_date, 'YYYY-MM') AS month, SUM(total_amount) AS monthly_sales FROM orders WHERE status = 'delivered' GROUP BY TO_CHAR(order_date, 'YYYY-MM')) SELECT month, monthly_sales, LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales, ROUND((monthly_sales - LAG(monthly_sales) OVER(ORDER BY month))::NUMERIC / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2) AS growth_rate FROM monthly ORDER BY month;"],
+    en: ['Use TO_CHAR(order_date, \'YYYY-MM\') to extract month.', 'CTE groups by month, main query uses LAG().', "WITH monthly AS (SELECT TO_CHAR(order_date, 'YYYY-MM') AS month, SUM(total_amount) AS monthly_sales FROM orders WHERE status = 'delivered' GROUP BY TO_CHAR(order_date, 'YYYY-MM')) SELECT month, monthly_sales, LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales, ROUND((monthly_sales - LAG(monthly_sales) OVER(ORDER BY month))::NUMERIC / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2) AS growth_rate FROM monthly ORDER BY month;"],
+  },
+  explanation: {
+    ko: `## CTE + Window Function 조합\n\n\`\`\`sql\nWITH monthly AS (\n  SELECT TO_CHAR(order_date, 'YYYY-MM') AS month,\n    SUM(total_amount) AS monthly_sales\n  FROM orders\n  WHERE status = 'delivered'\n  GROUP BY TO_CHAR(order_date, 'YYYY-MM')\n)\nSELECT month, monthly_sales,\n  LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales,\n  ROUND(\n    (monthly_sales - LAG(monthly_sales) OVER(ORDER BY month))::NUMERIC\n    / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2\n  ) AS growth_rate\nFROM monthly\nORDER BY month;\n\`\`\`\n\n### 분석 패턴\n1. **CTE**: 데이터 집계 (월별 합계)\n2. **Window Function**: 시계열 분석 (전월 비교)\n3. **조합**: 복잡한 비즈니스 분석을 단계적으로 수행\n\n### 실무 활용\n- 월별/분기별 매출 트렌드 분석\n- 전기 대비 성장률 대시보드\n- KPI 리포트 자동화`,
+    en: `## CTE + Window Function Combo\n\n\`\`\`sql\nWITH monthly AS (\n  SELECT TO_CHAR(order_date, 'YYYY-MM') AS month,\n    SUM(total_amount) AS monthly_sales\n  FROM orders WHERE status = 'delivered'\n  GROUP BY TO_CHAR(order_date, 'YYYY-MM')\n)\nSELECT month, monthly_sales,\n  LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales,\n  ROUND(\n    (monthly_sales - LAG(monthly_sales) OVER(ORDER BY month))::NUMERIC\n    / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2\n  ) AS growth_rate\nFROM monthly ORDER BY month;\n\`\`\`\n\n### Analysis Pattern\n1. **CTE**: Data aggregation (monthly totals)\n2. **Window Function**: Time-series analysis (previous month)\n3. **Combination**: Complex business analysis in steps\n\n### Real-World Uses\n- Monthly/quarterly sales trend analysis\n- Period-over-period growth dashboards\n- Automated KPI reporting`,
+  },
+  expectedQuery: {
+    postgresql: "WITH monthly AS (SELECT TO_CHAR(order_date, 'YYYY-MM') AS month, SUM(total_amount) AS monthly_sales FROM orders WHERE status = 'delivered' GROUP BY TO_CHAR(order_date, 'YYYY-MM')) SELECT month, monthly_sales, LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales, ROUND((monthly_sales - LAG(monthly_sales) OVER(ORDER BY month))::NUMERIC / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2) AS growth_rate FROM monthly ORDER BY month;",
+    mysql: "WITH monthly AS (SELECT DATE_FORMAT(order_date, '%Y-%m') AS month, SUM(total_amount) AS monthly_sales FROM orders WHERE status = 'delivered' GROUP BY DATE_FORMAT(order_date, '%Y-%m')) SELECT month, monthly_sales, LAG(monthly_sales) OVER(ORDER BY month) AS prev_month_sales, ROUND((monthly_sales - LAG(monthly_sales) OVER(ORDER BY month)) / LAG(monthly_sales) OVER(ORDER BY month) * 100, 2) AS growth_rate FROM monthly ORDER BY month;",
+  },
+  gradingMode: 'exact', relatedConcepts: ['CTE', 'LAG', 'Window Function', 'TO_CHAR', 'Growth Rate'],
+};

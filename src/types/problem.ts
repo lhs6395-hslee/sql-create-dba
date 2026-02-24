@@ -52,23 +52,23 @@ export const LEVEL_CONFIGS: LevelConfig[] = [
     id: 'beginner',
     label: { ko: '초보', en: 'Beginner' },
     description: {
-      ko: 'SELECT, WHERE, ORDER BY 등 SQL 기초를 학습합니다',
-      en: 'Learn SQL basics: SELECT, WHERE, ORDER BY and more',
+      ko: 'SELECT, WHERE, INSERT/UPDATE/DELETE 등 SQL 기초를 학습합니다',
+      en: 'Learn SQL basics: SELECT, WHERE, INSERT, UPDATE, DELETE',
     },
     icon: 'Sprout',
     color: 'emerald',
-    problemCount: 10,
+    problemCount: 13,
   },
   {
     id: 'intermediate',
     label: { ko: '중급', en: 'Intermediate' },
     description: {
-      ko: 'JOIN, 서브쿼리, GROUP BY 등 중급 쿼리를 학습합니다',
-      en: 'Learn intermediate queries: JOIN, subqueries, GROUP BY',
+      ko: 'JOIN, 서브쿼리, INSERT/UPDATE/DELETE 등을 학습합니다',
+      en: 'Learn JOIN, subqueries, and DML: INSERT, UPDATE, DELETE',
     },
     icon: 'Flame',
     color: 'blue',
-    problemCount: 0,
+    problemCount: 10,
   },
   {
     id: 'advanced',
@@ -79,7 +79,7 @@ export const LEVEL_CONFIGS: LevelConfig[] = [
     },
     icon: 'Zap',
     color: 'purple',
-    problemCount: 0,
+    problemCount: 10,
   },
   {
     id: 'expert',
@@ -90,6 +90,6 @@ export const LEVEL_CONFIGS: LevelConfig[] = [
     },
     icon: 'Crown',
     color: 'amber',
-    problemCount: 0,
+    problemCount: 10,
   },
 ];
