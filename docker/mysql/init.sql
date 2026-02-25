@@ -562,4 +562,9 @@ INSERT INTO reviews (product_id, customer_id, rating, comment) VALUES
 (36, 7, 5, 'Practical self-improvement book.'),
 (1, 29, 4, 'Solid phone, great camera.'),
 (6, 14, 5, 'Pro performance for dev work.'),
-(11, 22, 4, 'Best AirPods so far.');
+(11, 22, 4, 'Best AirPods so far.'),
+(4, 31, 1, 'Terrible battery life, dies in 2 hours.'),
+(19, 45, 1, 'Fabric fell apart after one wash.'),
+(50, 38, 1, 'Coffee maker broke after a week.'),
+(72, 50, 1, 'Stopped working after 3 uses.'),
+(56, 23, 1, 'Very flimsy, waste of money.');

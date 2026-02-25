@@ -745,4 +745,9 @@ INSERT INTO reviews (product_id, customer_id, rating, comment) VALUES
 (67, 13, 5, 'Satisfying key clicks.'),
 (71, 46, 4, 'Fast data transfer speeds.'),
 (33, 40, 5, 'Harry Potter is magical.'),
-(43, 36, 4, 'Good PostgreSQL reference.');
+(43, 36, 4, 'Good PostgreSQL reference.'),
+(4, 31, 1, 'Terrible battery life, dies in 2 hours.'),
+(19, 45, 1, 'Fabric fell apart after one wash.'),
+(50, 38, 1, 'Coffee maker broke after a week.'),
+(72, 50, 1, 'Stopped working after 3 uses.'),
+(56, 23, 1, 'Very flimsy, waste of money.');
