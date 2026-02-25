@@ -19,6 +19,9 @@ function getPool(): mysql.Pool {
   return pool;
 }
 
+const DML_PATTERN = /^\s*(INSERT|UPDATE|DELETE)\b/i;
+const DDL_PATTERN = /^\s*(CREATE|ALTER|DROP|TRUNCATE)\b/i;
+
 export async function executeMysqlQuery(sql: string): Promise<{
   columns: string[];
   rows: (string | number | boolean | null)[][];
@@ -29,6 +32,63 @@ export async function executeMysqlQuery(sql: string): Promise<{
   try {
     await connection.query('SET max_execution_time = 5000');
 
+    const isDML = DML_PATTERN.test(sql);
+    const isDDL = DDL_PATTERN.test(sql);
+
+    if (isDML) {
+      // DML: wrap in transaction and ROLLBACK to prevent permanent changes
+      await connection.beginTransaction();
+      try {
+        const startTime = Date.now();
+        const [results] = await connection.query(sql);
+        const executionTime = Date.now() - startTime;
+        const resultHeader = results as mysql.ResultSetHeader;
+        const affectedRows = resultHeader.affectedRows ?? 0;
+
+        await connection.rollback();
+
+        return {
+          columns: ['affectedRows'],
+          rows: [[affectedRows]],
+          rowCount: affectedRows,
+          executionTime,
+        };
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      }
+    }
+
+    if (isDDL) {
+      // DDL: MySQL DDL causes implicit commit, so we just execute and report
+      // Note: MySQL DDL auto-commits, cannot be rolled back in a transaction
+      const startTime = Date.now();
+      const [results, fields] = await connection.query(sql);
+      const executionTime = Date.now() - startTime;
+
+      if (Array.isArray(fields) && fields.length > 0) {
+        const columns = fields.map((f) => f.name);
+        const rows = (results as Record<string, unknown>[]).map((row) =>
+          columns.map((col) => {
+            const val = row[col];
+            if (val === undefined || val === null) return null;
+            if (typeof val === 'bigint') return Number(val);
+            if (val instanceof Date) return val.toISOString();
+            return val as string | number | boolean;
+          })
+        );
+        return { columns, rows, rowCount: rows.length, executionTime };
+      }
+
+      return {
+        columns: ['result'],
+        rows: [['OK']],
+        rowCount: 0,
+        executionTime,
+      };
+    }
+
+    // SELECT and other read queries
     const startTime = Date.now();
     const [results, fields] = await connection.query(sql);
     const executionTime = Date.now() - startTime;
@@ -53,7 +113,6 @@ export async function executeMysqlQuery(sql: string): Promise<{
       };
     }
 
-    // For non-SELECT queries (INSERT, UPDATE, DELETE)
     const resultHeader = results as mysql.ResultSetHeader;
     return {
       columns: ['affectedRows', 'insertId'],

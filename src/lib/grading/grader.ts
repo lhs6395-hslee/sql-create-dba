@@ -179,6 +179,48 @@ function compareContains(
   actual: QueryResult,
   expected: QueryResult
 ): GradingResult {
+  // DML result comparison: both have affectedRows column
+  const isDmlResult =
+    actual.columns.length === 1 &&
+    actual.columns[0]?.toLowerCase() === 'affectedrows' &&
+    expected.columns.length === 1 &&
+    expected.columns[0]?.toLowerCase() === 'affectedrows';
+
+  if (isDmlResult) {
+    const actualAffected = Number(actual.rows[0]?.[0] ?? 0);
+    const expectedAffected = Number(expected.rows[0]?.[0] ?? 0);
+
+    if (actualAffected === expectedAffected) {
+      return {
+        correct: true,
+        score: 100,
+        message: {
+          ko: `정답입니다! (${actualAffected}행 영향)`,
+          en: `Correct! (${actualAffected} rows affected)`,
+        },
+        details: {
+          expectedRowCount: expectedAffected,
+          actualRowCount: actualAffected,
+          matchingRows: actualAffected,
+        },
+      };
+    }
+
+    return {
+      correct: false,
+      score: 30,
+      message: {
+        ko: `영향 받은 행 수가 다릅니다. 기대: ${expectedAffected}행, 실제: ${actualAffected}행`,
+        en: `Affected row count mismatch. Expected: ${expectedAffected}, Actual: ${actualAffected}`,
+      },
+      details: {
+        expectedRowCount: expectedAffected,
+        actualRowCount: actualAffected,
+        matchingRows: 0,
+      },
+    };
+  }
+
   const expectedSet = new Set(expected.rows.map(rowToString));
   let matchingRows = 0;
 
@@ -201,7 +243,7 @@ function compareContains(
 
   return {
     correct: false,
-    score: Math.round((matchingRows / expected.rowCount) * 80) + 10,
+    score: Math.round((matchingRows / Math.max(expected.rowCount, 1)) * 80) + 10,
     message: {
       ko: '기대한 결과가 포함되어 있지 않습니다.',
       en: 'Expected results are not fully contained in your output.',
