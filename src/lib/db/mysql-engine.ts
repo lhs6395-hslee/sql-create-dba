@@ -37,7 +37,9 @@ export async function executeMysqlQuery(sql: string): Promise<{
 
     if (isDML) {
       // DML: wrap in transaction and ROLLBACK to prevent permanent changes
+      // Disable FK checks so DELETE/UPDATE don't fail on foreign key constraints
       await connection.beginTransaction();
+      await connection.query('SET FOREIGN_KEY_CHECKS = 0');
       try {
         const startTime = Date.now();
         const [results] = await connection.query(sql);
@@ -45,6 +47,7 @@ export async function executeMysqlQuery(sql: string): Promise<{
         const resultHeader = results as mysql.ResultSetHeader;
         const affectedRows = resultHeader.affectedRows ?? 0;
 
+        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
         await connection.rollback();
 
         return {
@@ -54,6 +57,7 @@ export async function executeMysqlQuery(sql: string): Promise<{
           executionTime,
         };
       } catch (error) {
+        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
         await connection.rollback();
         throw error;
       }

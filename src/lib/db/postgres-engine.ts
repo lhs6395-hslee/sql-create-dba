@@ -36,16 +36,26 @@ export async function executePostgresQuery(sql: string): Promise<{
 
     if (isDML) {
       // DML: wrap in transaction and ROLLBACK to prevent permanent changes
+      // Disable FK checks so DELETE/UPDATE don't fail on foreign key constraints
       await client.query('BEGIN');
+      await client.query("SET LOCAL session_replication_role = 'replica'");
       try {
         const startTime = Date.now();
         const result = await client.query(sql);
         const executionTime = Date.now() - startTime;
-        const affectedRows = result.rowCount ?? 0;
 
+        const hasReturning = /\bRETURNING\b/i.test(sql);
         // ROLLBACK to undo the DML changes
         await client.query('ROLLBACK');
 
+        if (hasReturning && result.fields && result.fields.length > 0) {
+          // INSERT/UPDATE/DELETE ... RETURNING: return the actual result columns
+          const columns = result.fields.map((f) => f.name);
+          const rows = result.rows?.map((row) => columns.map((col) => row[col])) || [];
+          return { columns, rows, rowCount: result.rowCount ?? rows.length, executionTime };
+        }
+
+        const affectedRows = result.rowCount ?? 0;
         return {
           columns: ['affectedRows'],
           rows: [[affectedRows]],
