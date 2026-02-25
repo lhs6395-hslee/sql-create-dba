@@ -93,11 +93,37 @@ export default function ProblemWorkspacePage() {
   }, [sqlValue, problem, dbEngine, locale, recordAttempt]);
 
   const handleCheckAnswer = useCallback(async () => {
-    if (!problem || !queryResult) return;
+    if (!problem || !sqlValue.trim()) return;
 
-    // Execute the expected query to get expected result
+    setIsRunning(true);
+    setQueryError(null);
+    setGradingResult(null);
+
     try {
-      const res = await fetch('/api/execute-sql', {
+      // Step 1: Execute user's query
+      const userRes = await fetch('/api/execute-sql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: sqlValue.trim(),
+          level: problem.level,
+          engine: dbEngine,
+        }),
+      });
+
+      const userData = await userRes.json();
+      if (!userRes.ok || !userData.success) {
+        const errorMsg = locale === 'ko' && userData.errorKo ? userData.errorKo : userData.error;
+        setQueryError(errorMsg || 'Unknown error');
+        return;
+      }
+
+      const userResult: QueryResult = userData.result;
+      setQueryResult(userResult);
+      recordAttempt(problem.id);
+
+      // Step 2: Execute the expected query
+      const expectedRes = await fetch('/api/execute-sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,13 +133,14 @@ export default function ProblemWorkspacePage() {
         }),
       });
 
-      const data = await res.json();
-      if (!data.success) {
-        setQueryError(data.error);
+      const expectedData = await expectedRes.json();
+      if (!expectedData.success) {
+        setQueryError(expectedData.error);
         return;
       }
 
-      const result = gradeResult(queryResult, data.result, problem.gradingMode);
+      // Step 3: Grade
+      const result = gradeResult(userResult, expectedData.result, problem.gradingMode);
       setGradingResult(result);
 
       if (result.correct) {
@@ -127,8 +154,10 @@ export default function ProblemWorkspacePage() {
           ? '채점 중 오류가 발생했습니다.'
           : 'An error occurred during grading.'
       );
+    } finally {
+      setIsRunning(false);
     }
-  }, [problem, queryResult, dbEngine, sqlValue, hintIndex, locale, completeProblem]);
+  }, [problem, sqlValue, dbEngine, hintIndex, locale, completeProblem, recordAttempt]);
 
   const handleReset = useCallback(() => {
     setSqlValue('');
@@ -238,7 +267,7 @@ export default function ProblemWorkspacePage() {
                 onHint={handleHint}
                 onCheckAnswer={handleCheckAnswer}
                 isRunning={isRunning}
-                hasResult={queryResult !== null}
+                hasQuery={sqlValue.trim().length > 0}
               />
             </div>
           </div>

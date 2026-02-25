@@ -10,7 +10,7 @@ interface EditorToolbarProps {
   onHint: () => void;
   onCheckAnswer: () => void;
   isRunning: boolean;
-  hasResult: boolean;
+  hasQuery: boolean;
 }
 
 export default function EditorToolbar({
@@ -19,7 +19,7 @@ export default function EditorToolbar({
   onHint,
   onCheckAnswer,
   isRunning,
-  hasResult,
+  hasQuery,
 }: EditorToolbarProps) {
   const { t } = useTranslation();
 
@@ -38,7 +38,7 @@ export default function EditorToolbar({
         </kbd>
       </Button>
 
-      <Button onClick={onCheckAnswer} disabled={!hasResult} size="sm" variant="default" className="gap-1.5">
+      <Button onClick={onCheckAnswer} disabled={isRunning || !hasQuery} size="sm" variant="default" className="gap-1.5">
         <CheckCircle2 className="h-3.5 w-3.5" />
         {t('problem.checkAnswer')}
       </Button>
