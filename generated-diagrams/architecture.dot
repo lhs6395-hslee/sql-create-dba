@@ -1,0 +1,179 @@
+digraph "SQL-DBA Learning Platform" {
+	graph [bb="0,0,736,637.75",
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=15,
+		label="SQL-DBA Learning Platform",
+		lheight=0.22,
+		lp="368,11.875",
+		lwidth=2.60,
+		nodesep=0.60,
+		pad=2.0,
+		rankdir=LR,
+		ranksep=0.75,
+		splines=ortho
+	];
+	node [fixedsize=true,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		height=1.4,
+		imagescale=true,
+		label="\N",
+		labelloc=b,
+		shape=box,
+		style=rounded,
+		width=1.4
+	];
+	edge [color="#7B8894"];
+	subgraph "cluster_Next.js 16 App Router" {
+		graph [bb="138.8,31.75,581.2,629.75",
+			bgcolor="#E5F5FD",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Next.js 16 App Router",
+			labeljust=l,
+			lheight=0.18,
+			lp="204.92,619.38",
+			lwidth=1.61,
+			pencolor="#AEB6BE",
+			rankdir=LR,
+			shape=box,
+			style=rounded
+		];
+		subgraph cluster_Pages {
+			graph [bb="146.8,39.75,263.6,600.75",
+				bgcolor="#EBF3E7",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label=Pages,
+				labeljust=l,
+				lheight=0.18,
+				lp="172.05,590.38",
+				lwidth=0.48,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=rounded
+			];
+			"073971eca4e949d68fc88ab4ab7ccecd"	[height=1.9,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+				label=Dashboard,
+				pos="205.2,115.75",
+				shape=none];
+			"19c95200a14640dd8f48a87f5b0ff177"	[height=2.3,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+				label="Workspace
+CodeMirror 6",
+				pos="205.2,309.75",
+				shape=none];
+			ba34e7053c5749eeb56e0ab6d4e0cedb	[height=1.9,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+				label="Theory Docs",
+				pos="205.2,503.75",
+				shape=none];
+		}
+		subgraph "cluster_API and Logic" {
+			graph [bb="301.6,177.75,573.2,530.75",
+				bgcolor="#EBF3E7",
+				fontname="Sans-Serif",
+				fontsize=12,
+				label="API and Logic",
+				labeljust=l,
+				lheight=0.18,
+				lp="347.1,520.38",
+				lwidth=1.04,
+				pencolor="#AEB6BE",
+				rankdir=LR,
+				shape=box,
+				style=rounded
+			];
+			aad8793b6b824f0498ebcd0cc9e19bfe	[height=1.9,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/network/nginx.png",
+				label="API Routes",
+				pos="360,309.75",
+				shape=none];
+			f489ed079d7f454087762795f405f093	[height=1.9,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+				label="SQL Validator",
+				pos="514.8,253.75",
+				shape=none];
+			aad8793b6b824f0498ebcd0cc9e19bfe -> f489ed079d7f454087762795f405f093	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				pos="e,464.53,281.75 410.26,281.75 410.26,281.75 453.01,281.75 453.01,281.75"];
+			aa416172daaf4af99372a3f515500669	[height=1.9,
+				image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+				label="Grading Engine",
+				pos="514.8,433.75",
+				shape=none];
+			aad8793b6b824f0498ebcd0cc9e19bfe -> aa416172daaf4af99372a3f515500669	[dir=forward,
+				fontcolor="#2D3436",
+				fontname="Sans-Serif",
+				fontsize=13,
+				pos="e,464.53,371.75 410.26,371.75 410.26,371.75 453.01,371.75 453.01,371.75"];
+		}
+		"19c95200a14640dd8f48a87f5b0ff177" -> aad8793b6b824f0498ebcd0cc9e19bfe	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,309.73,309.75 255.46,309.75 255.46,309.75 298.21,309.75 298.21,309.75"];
+	}
+	subgraph "cluster_Docker Compose" {
+		graph [bb="611.2,87.75,728,440.75",
+			bgcolor="#E5F5FD",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Docker Compose",
+			labeljust=l,
+			lheight=0.18,
+			lp="665.7,430.38",
+			lwidth=1.29,
+			pencolor="#AEB6BE",
+			rankdir=LR,
+			shape=box,
+			style=rounded
+		];
+		b9f601527dd04c66a2e9ceef0a9e44c5	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/database/postgresql.png",
+			label="PostgreSQL 16",
+			pos="669.6,163.75",
+			shape=none];
+		d6c2a653538242e6a46812734be2416a	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/database/mysql.png",
+			label="MySQL 8.0",
+			pos="669.6,343.75",
+			shape=none];
+	}
+	ca971661249942adbb4df0cea969acf0	[height=1.9,
+		image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/aws/general/users.png",
+		label=Learners,
+		pos="50.4,309.75",
+		shape=none];
+	ca971661249942adbb4df0cea969acf0 -> "073971eca4e949d68fc88ab4ab7ccecd"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,154.81,115.75 50,241.35 50,185.5 50,115.75 50,115.75 50,115.75 143.3,115.75 143.3,115.75"];
+	ca971661249942adbb4df0cea969acf0 -> "19c95200a14640dd8f48a87f5b0ff177"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,154.93,309.75 100.66,309.75 100.66,309.75 143.41,309.75 143.41,309.75"];
+	ca971661249942adbb4df0cea969acf0 -> ba34e7053c5749eeb56e0ab6d4e0cedb	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,154.81,503.75 50,378.15 50,434 50,503.75 50,503.75 50,503.75 143.3,503.75 143.3,503.75"];
+	f489ed079d7f454087762795f405f093 -> b9f601527dd04c66a2e9ceef0a9e44c5	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,619.33,208.75 565.06,208.75 565.06,208.75 607.81,208.75 607.81,208.75"];
+	f489ed079d7f454087762795f405f093 -> d6c2a653538242e6a46812734be2416a	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,619.33,298.75 565.06,298.75 565.06,298.75 607.81,298.75 607.81,298.75"];
+}

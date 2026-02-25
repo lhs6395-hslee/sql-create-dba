@@ -1,0 +1,157 @@
+digraph "SQL Query Execution Flow" {
+	graph [bb="0,0,772,446.75",
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=15,
+		label="SQL Query Execution Flow",
+		lheight=0.22,
+		lp="386,11.875",
+		lwidth=2.50,
+		nodesep=0.60,
+		pad=2.0,
+		rankdir=LR,
+		ranksep=0.75,
+		splines=ortho
+	];
+	node [fixedsize=true,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		height=1.4,
+		imagescale=true,
+		label="\N",
+		labelloc=b,
+		shape=box,
+		style=rounded,
+		width=1.4
+	];
+	edge [color="#7B8894"];
+	subgraph cluster_Browser {
+		graph [bb="147.8,187.75,264.6,360.75",
+			bgcolor="#E5F5FD",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label=Browser,
+			labeljust=l,
+			lheight=0.18,
+			lp="177.92,350.38",
+			lwidth=0.61,
+			pencolor="#AEB6BE",
+			rankdir=LR,
+			shape=box,
+			style=rounded
+		];
+		"402f26b36c4d4d9d999e1762b68371b3"	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+			label="SQL Editor",
+			pos="206.2,263.75",
+			shape=none];
+	}
+	subgraph "cluster_Next.js API" {
+		graph [bb="335.6,56.75,608.2,438.75",
+			bgcolor="#E5F5FD",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Next.js API",
+			labeljust=l,
+			lheight=0.18,
+			lp="372.85,428.38",
+			lwidth=0.81,
+			pencolor="#AEB6BE",
+			rankdir=LR,
+			shape=box,
+			style=rounded
+		];
+		"881559c7ccd64b35bbd41d1a8ae4e275"	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+			label="execute-sql",
+			pos="394,341.75",
+			shape=none];
+		"713a1903c26841e39e3dadc53a78e4db"	[height=2.3,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+			label="SQL Validator
+Level Check",
+			pos="549.8,326.75",
+			shape=none];
+		"881559c7ccd64b35bbd41d1a8ae4e275" -> "713a1903c26841e39e3dadc53a78e4db"	[dir=forward,
+			fontcolor="#2D3436",
+			fontname="Sans-Serif",
+			fontsize=13,
+			pos="e,499.47,341.45 444.15,341.45 444.15,341.45 487.96,341.45 487.96,341.45"];
+		"3982be83466e4219ab3349175ab50764"	[height=2.3,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/compute/server.png",
+			label="Grader
+Compare Results",
+			pos="394,147.75",
+			shape=none];
+	}
+	subgraph "cluster_Database Layer" {
+		graph [bb="647.2,31.75,764,384.75",
+			bgcolor="#E5F5FD",
+			fontname="Sans-Serif",
+			fontsize=12,
+			label="Database Layer",
+			labeljust=l,
+			lheight=0.18,
+			lp="697.57,374.38",
+			lwidth=1.18,
+			pencolor="#AEB6BE",
+			rankdir=LR,
+			shape=box,
+			style=rounded
+		];
+		e5f9d2deaeed4e4c95615b6af2a29ed6	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/database/postgresql.png",
+			label=PostgreSQL,
+			pos="705.6,287.75",
+			shape=none];
+		e91a1f61333b434086f5390671a0f487	[height=1.9,
+			image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/onprem/database/mysql.png",
+			label=MySQL,
+			pos="705.6,107.75",
+			shape=none];
+	}
+	"5dcfd092731f474791819abe546cc28e"	[height=1.9,
+		image="/Users/toule/.cache/uv/archive-v0/TtcFmE2otGKQTwF6xRrNM/lib/python3.13/site-packages/resources/aws/general/user.png",
+		label=Student,
+		pos="50.4,263.75",
+		shape=none];
+	"5dcfd092731f474791819abe546cc28e" -> "402f26b36c4d4d9d999e1762b68371b3"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,155.87,263.75 100.55,263.75 100.55,263.75 144.36,263.75 144.36,263.75"];
+	"402f26b36c4d4d9d999e1762b68371b3" -> "881559c7ccd64b35bbd41d1a8ae4e275"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,343.86,302.75 256.53,302.75 256.53,302.75 332.35,302.75 332.35,302.75"];
+	"713a1903c26841e39e3dadc53a78e4db" -> e5f9d2deaeed4e4c95615b6af2a29ed6	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,655.27,300.05 599.95,300.05 599.95,300.05 643.76,300.05 643.76,300.05"];
+	"713a1903c26841e39e3dadc53a78e4db" -> e91a1f61333b434086f5390671a0f487	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,655.51,139.08 550,244.16 550,193.81 550,139.08 550,139.08 550,139.08 644,139.08 644,139.08"];
+	"3982be83466e4219ab3349175ab50764" -> "402f26b36c4d4d9d999e1762b68371b3"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		label=score,
+		lp="300.1,230.5",
+		pos="e,256.34,212.95 343.67,212.95 343.67,212.95 267.85,212.95 267.85,212.95",
+		style=dashed];
+	e5f9d2deaeed4e4c95615b6af2a29ed6 -> "3982be83466e4219ab3349175ab50764"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,444.2,224.95 655.54,224.95 655.54,224.95 455.71,224.95 455.71,224.95"];
+	e91a1f61333b434086f5390671a0f487 -> "3982be83466e4219ab3349175ab50764"	[dir=forward,
+		fontcolor="#2D3436",
+		fontname="Sans-Serif",
+		fontsize=13,
+		pos="e,444.2,102.02 655.54,102.02 655.54,102.02 455.71,102.02 455.71,102.02"];
+}
