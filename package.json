@@ -12,6 +12,7 @@
     "db:reset": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.997.0",
     "@codemirror/lang-sql": "^6.10.0",
     "@codemirror/state": "^6.5.4",
     "@codemirror/theme-one-dark": "^6.1.3",

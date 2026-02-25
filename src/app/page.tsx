@@ -5,6 +5,8 @@ import { useLocaleStore } from '@/stores/locale-store';
 import { LEVEL_CONFIGS } from '@/types/problem';
 import LevelCard from '@/components/progress/LevelCard';
 import { Database, Terminal, BookOpen, Trophy } from 'lucide-react';
+import ArchitectureDiagram from '@/components/home/ArchitectureDiagram';
+import ExecutionFlowDiagram from '@/components/home/ExecutionFlowDiagram';
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -62,6 +64,16 @@ export default function HomePage() {
               : 'Automatically grade your queries and get detailed explanations'}
           </p>
         </div>
+      </section>
+
+      {/* Architecture Diagram */}
+      <section className="max-w-4xl mx-auto">
+        <ArchitectureDiagram locale={locale} />
+      </section>
+
+      {/* Execution Flow Diagram */}
+      <section className="max-w-4xl mx-auto">
+        <ExecutionFlowDiagram locale={locale} />
       </section>
 
       {/* Level Cards */}
