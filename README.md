@@ -9,9 +9,136 @@ DBA를 목표로 하는 학습자가 SQL 실력을 초보부터 전문가 수준
 
 ## Architecture
 
-![System Architecture](generated-diagrams/architecture.png)
+### System Architecture
 
-![SQL Execution Flow](generated-diagrams/execution-flow.png)
+```mermaid
+graph TB
+    subgraph CLIENT["🖥️ Client Layer"]
+        direction LR
+        DASH["📊 Dashboard<br/><small>React 19 + Zustand</small>"]
+        WORK["⌨️ SQL Workspace<br/><small>CodeMirror 6</small>"]
+        DOCS["📖 Theory Docs<br/><small>react-markdown + SVG</small>"]
+        CHAT["🤖 AI Chat<br/><small>AWS Bedrock</small>"]
+    end
+
+    subgraph API["⚡ Next.js 16 API Layer"]
+        direction LR
+        EXEC["/api/execute-sql"]
+        RESET["/api/reset-db"]
+        CHATAPI["/api/chat"]
+    end
+
+    subgraph LOGIC["🔧 Core Logic"]
+        direction LR
+        VALID["🛡️ SQL Validator<br/><small>Level-based permissions</small>"]
+        GRADE["✅ Grading Engine<br/><small>exact / unordered / contains</small>"]
+        STATE["📦 State Manager<br/><small>Zustand 5 + localStorage</small>"]
+    end
+
+    subgraph DB["🐳 Docker Compose"]
+        direction LR
+        PG["🐘 PostgreSQL 16"]
+        MY["🐬 MySQL 8.0"]
+    end
+
+    CLIENT --> API
+    API --> LOGIC
+    LOGIC --> DB
+
+    WORK --> EXEC
+    EXEC --> VALID
+    VALID --> PG
+    VALID --> MY
+    EXEC --> GRADE
+    CHAT --> CHATAPI
+
+    style CLIENT fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style API fill:#ede9fe,stroke:#8b5cf6,color:#3b1f7a
+    style LOGIC fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    style DB fill:#d1fae5,stroke:#10b981,color:#064e3b
+```
+
+### SQL Execution Flow
+
+```mermaid
+graph LR
+    A["✏️ SQL 작성<br/><small>CodeMirror 6</small>"] --> B["🛡️ 권한 검증<br/><small>Level-based</small>"]
+    B --> C["🔀 DB 라우팅<br/><small>PG / MySQL</small>"]
+    C --> D["💾 쿼리 실행<br/><small>Docker DB</small>"]
+    D --> E["📊 결과 채점<br/><small>3 modes</small>"]
+    E --> F["💬 피드백<br/><small>Score + Hint</small>"]
+
+    style A fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style B fill:#fef3c7,stroke:#f59e0b,color:#78350f
+    style C fill:#ede9fe,stroke:#8b5cf6,color:#3b1f7a
+    style D fill:#d1fae5,stroke:#10b981,color:#064e3b
+    style E fill:#ffe4e6,stroke:#f43f5e,color:#881337
+    style F fill:#ccfbf1,stroke:#14b8a6,color:#134e4a
+```
+
+### Database Schema (ERD)
+
+```mermaid
+erDiagram
+    customers ||--o| customer_profiles : "1:1"
+    customers ||--o{ orders : "1:N"
+    customers ||--o{ reviews : "1:N"
+    orders ||--|{ order_items : "1:N"
+    products ||--o{ order_items : "N:M via junction"
+    products ||--o{ reviews : "1:N"
+    categories ||--o{ products : "1:N"
+    categories ||--o{ categories : "self-ref"
+
+    customers {
+        int id PK
+        varchar name
+        varchar email UK
+        varchar city
+        date signup_date
+        boolean is_premium
+    }
+    customer_profiles {
+        int id PK
+        int customer_id FK
+        text bio
+        varchar avatar_url
+    }
+    orders {
+        int id PK
+        int customer_id FK
+        date order_date
+        decimal total_amount
+        varchar status
+    }
+    order_items {
+        int id PK
+        int order_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+    }
+    products {
+        int id PK
+        varchar name
+        decimal price
+        int stock
+        int category_id FK
+        timestamp created_at
+    }
+    categories {
+        int id PK
+        varchar name
+        int parent_id FK
+    }
+    reviews {
+        int id PK
+        int customer_id FK
+        int product_id FK
+        int rating
+        text comment
+        timestamp created_at
+    }
+```
 
 ---
 
@@ -77,6 +204,10 @@ MYSQL_PORT=3306
 MYSQL_DATABASE=sql_practice
 MYSQL_USER=sql_student
 MYSQL_PASSWORD=practice123
+
+# AWS Bedrock (AI Chat Assistant)
+AWS_BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 ```
 
 ---
@@ -88,6 +219,7 @@ sql-create-dba/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── api/
+│   │   │   ├── chat/               # AI 챗봇 API (AWS Bedrock)
 │   │   │   ├── execute-sql/        # SQL 실행 API
 │   │   │   └── reset-db/           # DB 초기화 API
 │   │   ├── docs/                   # 이론 문서 페이지
@@ -101,10 +233,15 @@ sql-create-dba/
 │   │   └── providers.tsx           # 클라이언트 프로바이더
 │   │
 │   ├── components/
+│   │   ├── chat/
+│   │   │   └── ChatBot.tsx         # 플로팅 AI 챗봇 (AWS Bedrock)
 │   │   ├── editor/                 # SQL 에디터 관련
 │   │   │   ├── SqlEditor.tsx       # CodeMirror 6 에디터
 │   │   │   ├── EditorToolbar.tsx   # 실행/초기화/힌트/채점 버튼
 │   │   │   └── ResultTable.tsx     # 쿼리 결과 테이블
+│   │   ├── home/                   # 홈페이지 다이어그램
+│   │   │   ├── ArchitectureDiagram.tsx    # 인터랙티브 아키텍처
+│   │   │   └── ExecutionFlowDiagram.tsx   # SQL 실행 흐름도
 │   │   ├── problem/                # 문제 관련
 │   │   │   ├── ProblemDescription.tsx
 │   │   │   ├── ProblemList.tsx
@@ -226,20 +363,11 @@ sql-create-dba/
 
 ## Database Schema
 
-E-Commerce 스키마를 사용합니다:
+E-Commerce 스키마를 사용합니다 (상세 ERD는 [Architecture](#database-schema-erd) 섹션 참조):
 
-```
-customers        1:1  customer_profiles
-customers        1:N  orders
-orders           1:N  order_items
-products         1:N  order_items       (N:M via junction)
-categories       1:N  products
-categories       1:N  categories        (self-ref)
-customers        1:N  reviews
-products         1:N  reviews
-```
-
-시드 데이터: ~50 customers, ~20 categories, ~100 products, ~500 orders, ~1200 order_items, ~300 reviews
+- 7개 테이블: `customers`, `customer_profiles`, `orders`, `order_items`, `products`, `categories`, `reviews`
+- 관계: 1:1, 1:N, N:M (junction table), self-referencing
+- 시드 데이터: ~50 customers, ~20 categories, ~100 products, ~500 orders, ~1200 order_items, ~300 reviews
 
 ---
 
