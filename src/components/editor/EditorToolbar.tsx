@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/lib/i18n';
-import { Play, RotateCcw, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { useLocaleStore } from '@/stores/locale-store';
+import { Play, RotateCcw, Lightbulb, CheckCircle2, TextSelect } from 'lucide-react';
 
 interface EditorToolbarProps {
   onRun: () => void;
@@ -11,6 +12,7 @@ interface EditorToolbarProps {
   onCheckAnswer: () => void;
   isRunning: boolean;
   hasQuery: boolean;
+  hasSelection?: boolean;
 }
 
 export default function EditorToolbar({
@@ -20,8 +22,10 @@ export default function EditorToolbar({
   onCheckAnswer,
   isRunning,
   hasQuery,
+  hasSelection = false,
 }: EditorToolbarProps) {
   const { t } = useTranslation();
+  const locale = useLocaleStore((s) => s.locale);
 
   return (
     <div className="flex items-center gap-2 py-2">
@@ -32,7 +36,9 @@ export default function EditorToolbar({
         className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
       >
         <Play className="h-3.5 w-3.5" />
-        {t('problem.run')}
+        {hasSelection
+          ? (locale === 'ko' ? '선택 실행' : 'Run Selection')
+          : t('problem.run')}
         <kbd className="ml-1 hidden sm:inline-flex items-center rounded border border-emerald-400/30 bg-emerald-500/20 px-1 text-[10px] font-mono">
           {navigator?.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+↵
         </kbd>
@@ -42,6 +48,13 @@ export default function EditorToolbar({
         <CheckCircle2 className="h-3.5 w-3.5" />
         {t('problem.checkAnswer')}
       </Button>
+
+      {hasSelection && (
+        <span className="flex items-center gap-1 text-[10px] text-blue-500 dark:text-blue-400">
+          <TextSelect className="h-3 w-3" />
+          {locale === 'ko' ? '선택 영역' : 'Selection'}
+        </span>
+      )}
 
       <div className="flex-1" />
 

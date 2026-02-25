@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { sql, PostgreSQL, MySQL } from '@codemirror/lang-sql';
@@ -17,14 +17,22 @@ import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useTranslation } from '@/lib/i18n';
 
+export interface SqlEditorHandle {
+  getSelection: () => string;
+}
+
 interface SqlEditorProps {
   value: string;
   onChange: (value: string) => void;
   onRun: () => void;
+  onSelectionChange?: (hasSelection: boolean) => void;
   readOnly?: boolean;
 }
 
-export default function SqlEditor({ value, onChange, onRun, readOnly = false }: SqlEditorProps) {
+const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function SqlEditor(
+  { value, onChange, onRun, onSelectionChange, readOnly = false },
+  ref
+) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const { resolvedTheme } = useTheme();
@@ -36,6 +44,19 @@ export default function SqlEditor({ value, onChange, onRun, readOnly = false }: 
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
+
+  useImperativeHandle(ref, () => ({
+    getSelection: () => {
+      const view = viewRef.current;
+      if (!view) return '';
+      const { from, to } = view.state.selection.main;
+      if (from === to) return '';
+      return view.state.sliceDoc(from, to);
+    },
+  }));
 
   const createExtensions = useCallback(() => {
     const isDark = resolvedTheme === 'dark';
@@ -68,6 +89,10 @@ export default function SqlEditor({ value, onChange, onRun, readOnly = false }: 
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           onChangeRef.current(update.state.doc.toString());
+        }
+        if (update.selectionSet) {
+          const { from, to } = update.state.selection.main;
+          onSelectionChangeRef.current?.(from !== to);
         }
       }),
       EditorView.editable.of(!readOnly),
@@ -132,4 +157,6 @@ export default function SqlEditor({ value, onChange, onRun, readOnly = false }: 
       className="h-full min-h-[200px] rounded-md border border-border bg-background overflow-hidden"
     />
   );
-}
+});
+
+export default SqlEditor;

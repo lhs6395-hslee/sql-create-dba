@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useLocaleStore } from '@/stores/locale-store';
@@ -9,6 +9,7 @@ import { useProgressStore } from '@/stores/progress-store';
 import { getProblemById, getProblemsByLevel, getNextProblem } from '@/data/problems';
 import { gradeResult, type GradingResult } from '@/lib/grading/grader';
 import type { QueryResult, Level } from '@/types/problem';
+import type { SqlEditorHandle } from '@/components/editor/SqlEditor';
 import ProblemDescription from '@/components/problem/ProblemDescription';
 import ResultTable from '@/components/editor/ResultTable';
 import EditorToolbar from '@/components/editor/EditorToolbar';
@@ -43,7 +44,9 @@ export default function ProblemWorkspacePage() {
   const problem = getProblemById(problemId);
   const levelProblems = getProblemsByLevel(level);
 
+  const editorRef = useRef<SqlEditorHandle>(null);
   const [sqlValue, setSqlValue] = useState('');
+  const [hasSelection, setHasSelection] = useState(false);
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [gradingResultState, setGradingResult] = useState<GradingResult | null>(null);
@@ -52,8 +55,14 @@ export default function ProblemWorkspacePage() {
   const [activeTab, setActiveTab] = useState('result');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  const getExecutableSql = useCallback(() => {
+    const selection = editorRef.current?.getSelection() ?? '';
+    return selection.trim() || sqlValue.trim();
+  }, [sqlValue]);
+
   const handleRun = useCallback(async () => {
-    if (!problem || !sqlValue.trim()) return;
+    const execSql = getExecutableSql();
+    if (!problem || !execSql) return;
 
     setIsRunning(true);
     setQueryError(null);
@@ -64,7 +73,7 @@ export default function ProblemWorkspacePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sql: sqlValue.trim(),
+          sql: execSql,
           level: problem.level,
           engine: dbEngine,
         }),
@@ -90,7 +99,7 @@ export default function ProblemWorkspacePage() {
     } finally {
       setIsRunning(false);
     }
-  }, [sqlValue, problem, dbEngine, locale, recordAttempt]);
+  }, [getExecutableSql, problem, dbEngine, locale, recordAttempt]);
 
   const handleCheckAnswer = useCallback(async () => {
     if (!problem || !sqlValue.trim()) return;
@@ -258,9 +267,11 @@ export default function ProblemWorkspacePage() {
             </div>
             <div className="h-[200px]">
               <SqlEditor
+                ref={editorRef}
                 value={sqlValue}
                 onChange={setSqlValue}
                 onRun={handleRun}
+                onSelectionChange={setHasSelection}
               />
             </div>
             <div className="px-2">
@@ -271,6 +282,7 @@ export default function ProblemWorkspacePage() {
                 onCheckAnswer={handleCheckAnswer}
                 isRunning={isRunning}
                 hasQuery={sqlValue.trim().length > 0}
+                hasSelection={hasSelection}
               />
             </div>
           </div>
