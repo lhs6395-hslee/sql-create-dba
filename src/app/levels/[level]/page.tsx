@@ -16,12 +16,16 @@ export default function LevelPage() {
   const params = useParams();
   const level = params.level as Level;
   const locale = useLocaleStore((s) => s.locale);
-  const getAttempt = useProgressStore((s) => s.getAttempt);
-  const getLevelProgress = useProgressStore((s) => s.getLevelProgress);
+  const progressData = useProgressStore((s) => s.progress);
 
   const problems = getProblemsByLevel(level);
   const levelConfig = LEVEL_CONFIGS.find((c) => c.id === level);
-  const progress = getLevelProgress(level);
+  const progress = progressData.levelProgress[level] ?? {
+    totalProblems: 0,
+    completedProblems: 0,
+    percentage: 0,
+    unlocked: false,
+  };
 
   if (!levelConfig || problems.length === 0) {
     return (
@@ -74,7 +78,7 @@ export default function LevelPage() {
             </h2>
             <div className="grid gap-2">
               {categoryProblems.map((problem) => {
-                const attempt = getAttempt(problem.id);
+                const attempt = progressData.completedProblems[problem.id];
                 const isCompleted = attempt?.status === 'completed';
                 const isAttempted = attempt?.status === 'attempted';
 

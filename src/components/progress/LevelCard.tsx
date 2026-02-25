@@ -47,11 +47,15 @@ interface LevelCardProps {
 
 export default function LevelCard({ config }: LevelCardProps) {
   const locale = useLocaleStore((s) => s.locale);
-  const isLevelUnlocked = useProgressStore((s) => s.isLevelUnlocked);
-  const getLevelProgress = useProgressStore((s) => s.getLevelProgress);
+  const levelProgress = useProgressStore((s) => s.progress.levelProgress);
 
-  const unlocked = isLevelUnlocked(config.id);
-  const progress = getLevelProgress(config.id);
+  const progress = levelProgress[config.id] ?? {
+    totalProblems: 0,
+    completedProblems: 0,
+    percentage: 0,
+    unlocked: false,
+  };
+  const unlocked = progress.unlocked;
   const Icon = ICONS[config.icon as keyof typeof ICONS] || Sprout;
   const gradient = GRADIENTS[config.color as keyof typeof GRADIENTS] || GRADIENTS.emerald;
   const iconColor = ICON_COLORS[config.color as keyof typeof ICON_COLORS] || ICON_COLORS.emerald;

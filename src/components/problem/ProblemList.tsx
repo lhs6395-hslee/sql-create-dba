@@ -14,12 +14,12 @@ interface ProblemListProps {
 
 export default function ProblemList({ problems, currentProblemId }: ProblemListProps) {
   const locale = useLocaleStore((s) => s.locale);
-  const getAttempt = useProgressStore((s) => s.getAttempt);
+  const completedProblems = useProgressStore((s) => s.progress.completedProblems);
 
   return (
     <div className="space-y-1">
       {problems.map((problem) => {
-        const attempt = getAttempt(problem.id);
+        const attempt = completedProblems[problem.id];
         const isActive = problem.id === currentProblemId;
         const isCompleted = attempt?.status === 'completed';
         const isAttempted = attempt?.status === 'attempted';

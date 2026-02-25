@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useProgressStore } from '@/stores/progress-store';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
+  const recalculateProgress = useProgressStore((s) => s.recalculateProgress);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Recalculate progress on mount to sync with current problem set
+    recalculateProgress();
+  }, [recalculateProgress]);
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
