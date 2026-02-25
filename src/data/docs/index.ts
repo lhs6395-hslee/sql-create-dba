@@ -48,27 +48,88 @@ export const docChapters: DocChapter[] = [
 - **기본 키(Primary Key)**: 각 행을 고유하게 식별하는 열
 - **외래 키(Foreign Key)**: 다른 테이블의 기본 키를 참조하는 열
 
+### 데이터 타입
+
+| 타입 | PostgreSQL | MySQL | 설명 |
+|------|-----------|-------|------|
+| 정수 | INTEGER, BIGINT | INT, BIGINT | 정수형 |
+| 실수 | DECIMAL(10,2), NUMERIC | DECIMAL(10,2) | 고정 소수점 |
+| 문자열 | VARCHAR(100), TEXT | VARCHAR(100), TEXT | 가변 길이 문자열 |
+| 날짜 | DATE | DATE | 날짜 (YYYY-MM-DD) |
+| 시간 | TIMESTAMP | TIMESTAMP, DATETIME | 날짜+시간 |
+| 논리 | BOOLEAN | BOOLEAN (TINYINT) | true/false |
+| 자동증가 | SERIAL | AUTO_INCREMENT | 자동 증가 PK |
+
+### PostgreSQL vs MySQL 주요 차이
+
+| 기능 | PostgreSQL | MySQL |
+|------|-----------|-------|
+| 자동 증가 | \`SERIAL\` / \`GENERATED ALWAYS\` | \`AUTO_INCREMENT\` |
+| 문자열 연결 | \`\\|\\|\` 연산자 | \`CONCAT()\` 함수 |
+| 대소문자 | 기본 대소문자 구분 | 기본 대소문자 무시 |
+| UPSERT | \`ON CONFLICT DO UPDATE\` | \`ON DUPLICATE KEY UPDATE\` |
+| LIMIT | \`LIMIT n OFFSET m\` | \`LIMIT m, n\` 또는 \`LIMIT n OFFSET m\` |
+| BOOLEAN | 진짜 BOOLEAN 타입 | TINYINT(1)로 구현 |
+| 현재 시간 | \`CURRENT_TIMESTAMP\`, \`NOW()\` | \`NOW()\`, \`CURRENT_TIMESTAMP\` |
+
 ### 이 플랫폼의 스키마
 
 \`\`\`
 customers (고객)
-├── id, name, email, city, country, signup_date, is_premium
+├── id          SERIAL PRIMARY KEY
+├── name        VARCHAR(100) NOT NULL
+├── email       VARCHAR(150) UNIQUE NOT NULL
+├── city        VARCHAR(50)
+├── country     VARCHAR(50)
+├── signup_date DATE
+└── is_premium  BOOLEAN DEFAULT FALSE
 
 categories (카테고리)
-├── id, name, parent_id
+├── id          SERIAL PRIMARY KEY
+├── name        VARCHAR(50) NOT NULL
+└── parent_id   INTEGER → categories(id) (자기참조 FK)
 
 products (상품)
-├── id, name, category_id, price, stock_quantity, created_at
+├── id              SERIAL PRIMARY KEY
+├── name            VARCHAR(200) NOT NULL
+├── category_id     INTEGER → categories(id)
+├── price           DECIMAL(10,2) NOT NULL
+├── stock_quantity  INTEGER DEFAULT 0
+└── created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 orders (주문)
-├── id, customer_id, order_date, status, total_amount
+├── id            SERIAL PRIMARY KEY
+├── customer_id   INTEGER → customers(id)
+├── order_date    TIMESTAMP NOT NULL
+├── status        VARCHAR(20) CHECK (pending/processing/shipped/delivered/cancelled)
+└── total_amount  DECIMAL(12,2)
 
 order_items (주문 상세)
-├── id, order_id, product_id, quantity, unit_price
+├── id          SERIAL PRIMARY KEY
+├── order_id    INTEGER → orders(id)
+├── product_id  INTEGER → products(id)
+├── quantity    INTEGER NOT NULL
+└── unit_price  DECIMAL(10,2) NOT NULL
 
 reviews (리뷰)
-├── id, product_id, customer_id, rating, comment, created_at
-\`\`\``,
+├── id          SERIAL PRIMARY KEY
+├── product_id  INTEGER → products(id)
+├── customer_id INTEGER → customers(id)
+├── rating      INTEGER CHECK (1~5)
+├── comment     TEXT
+└── created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+\`\`\`
+
+### 테이블 간 관계도 (ERD)
+
+\`\`\`
+customers ──< orders ──< order_items >── products
+    │                                       │
+    └─────── reviews ──────────────────────┘
+                                 categories (self-ref)
+\`\`\`
+- \`──<\` : 1:N 관계 (한 고객이 여러 주문)
+- \`>──\` : N:1 관계 (여러 주문항목이 하나의 상품)`,
           en: `## What is SQL?
 
 **SQL** (Structured Query Language) is the standard language for managing and manipulating data in relational databases.
@@ -91,27 +152,88 @@ reviews (리뷰)
 - **Primary Key**: A column that uniquely identifies each row
 - **Foreign Key**: A column that references the primary key of another table
 
+### Data Types
+
+| Type | PostgreSQL | MySQL | Description |
+|------|-----------|-------|-------------|
+| Integer | INTEGER, BIGINT | INT, BIGINT | Whole numbers |
+| Decimal | DECIMAL(10,2), NUMERIC | DECIMAL(10,2) | Fixed-point |
+| String | VARCHAR(100), TEXT | VARCHAR(100), TEXT | Variable-length |
+| Date | DATE | DATE | Date (YYYY-MM-DD) |
+| Timestamp | TIMESTAMP | TIMESTAMP, DATETIME | Date + time |
+| Boolean | BOOLEAN | BOOLEAN (TINYINT) | true/false |
+| Auto-increment | SERIAL | AUTO_INCREMENT | Auto PK |
+
+### PostgreSQL vs MySQL Key Differences
+
+| Feature | PostgreSQL | MySQL |
+|---------|-----------|-------|
+| Auto-increment | \`SERIAL\` / \`GENERATED ALWAYS\` | \`AUTO_INCREMENT\` |
+| String concat | \`\\|\\|\` operator | \`CONCAT()\` function |
+| Case sensitivity | Case-sensitive by default | Case-insensitive by default |
+| UPSERT | \`ON CONFLICT DO UPDATE\` | \`ON DUPLICATE KEY UPDATE\` |
+| LIMIT | \`LIMIT n OFFSET m\` | \`LIMIT m, n\` or \`LIMIT n OFFSET m\` |
+| BOOLEAN | Native BOOLEAN type | TINYINT(1) |
+| Current time | \`CURRENT_TIMESTAMP\`, \`NOW()\` | \`NOW()\`, \`CURRENT_TIMESTAMP\` |
+
 ### Platform Schema
 
 \`\`\`
 customers
-├── id, name, email, city, country, signup_date, is_premium
+├── id          SERIAL PRIMARY KEY
+├── name        VARCHAR(100) NOT NULL
+├── email       VARCHAR(150) UNIQUE NOT NULL
+├── city        VARCHAR(50)
+├── country     VARCHAR(50)
+├── signup_date DATE
+└── is_premium  BOOLEAN DEFAULT FALSE
 
 categories
-├── id, name, parent_id
+├── id          SERIAL PRIMARY KEY
+├── name        VARCHAR(50) NOT NULL
+└── parent_id   INTEGER → categories(id) (self-referencing FK)
 
 products
-├── id, name, category_id, price, stock_quantity, created_at
+├── id              SERIAL PRIMARY KEY
+├── name            VARCHAR(200) NOT NULL
+├── category_id     INTEGER → categories(id)
+├── price           DECIMAL(10,2) NOT NULL
+├── stock_quantity  INTEGER DEFAULT 0
+└── created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 orders
-├── id, customer_id, order_date, status, total_amount
+├── id            SERIAL PRIMARY KEY
+├── customer_id   INTEGER → customers(id)
+├── order_date    TIMESTAMP NOT NULL
+├── status        VARCHAR(20) CHECK (pending/processing/shipped/delivered/cancelled)
+└── total_amount  DECIMAL(12,2)
 
 order_items
-├── id, order_id, product_id, quantity, unit_price
+├── id          SERIAL PRIMARY KEY
+├── order_id    INTEGER → orders(id)
+├── product_id  INTEGER → products(id)
+├── quantity    INTEGER NOT NULL
+└── unit_price  DECIMAL(10,2) NOT NULL
 
 reviews
-├── id, product_id, customer_id, rating, comment, created_at
-\`\`\``,
+├── id          SERIAL PRIMARY KEY
+├── product_id  INTEGER → products(id)
+├── customer_id INTEGER → customers(id)
+├── rating      INTEGER CHECK (1~5)
+├── comment     TEXT
+└── created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+\`\`\`
+
+### Table Relationships (ERD)
+
+\`\`\`
+customers ──< orders ──< order_items >── products
+    │                                       │
+    └─────── reviews ──────────────────────┘
+                                 categories (self-ref)
+\`\`\`
+- \`──<\` : 1:N relationship (one customer, many orders)
+- \`>──\` : N:1 relationship (many order items, one product)`,
         },
       },
       {
@@ -167,7 +289,52 @@ SQL 문의 실제 실행 순서는 작성 순서와 다릅니다:
 | 4 | HAVING | 그룹 필터링 |
 | 5 | SELECT | 열 선택 |
 | 6 | ORDER BY | 정렬 |
-| 7 | LIMIT | 행 수 제한 |`,
+| 7 | LIMIT | 행 수 제한 |
+
+### 자주 사용하는 함수
+
+\`\`\`sql
+-- 문자열 함수
+SELECT UPPER(name), LOWER(email), LENGTH(name)
+FROM customers;
+
+-- 숫자 함수
+SELECT ROUND(price, 0), CEIL(price), FLOOR(price)
+FROM products;
+
+-- 날짜 함수 (PostgreSQL)
+SELECT CURRENT_DATE, CURRENT_TIMESTAMP, NOW();
+SELECT signup_date, AGE(signup_date) FROM customers;
+
+-- NULL 처리
+SELECT name, COALESCE(city, '미지정') AS city
+FROM customers;
+\`\`\`
+
+| 함수 | 설명 | 예시 결과 |
+|------|------|----------|
+| UPPER(s) | 대문자 변환 | 'HELLO' |
+| LOWER(s) | 소문자 변환 | 'hello' |
+| LENGTH(s) | 문자열 길이 | 5 |
+| TRIM(s) | 앞뒤 공백 제거 | 'hello' |
+| ROUND(n, d) | 반올림 | 3.14 |
+| COALESCE(a, b) | NULL이면 b 반환 | b |
+| CAST(x AS type) | 타입 변환 | 변환된 값 |
+
+### 실습 예제
+
+\`\`\`sql
+-- 예제 1: 모든 고객의 이름과 도시 조회
+SELECT name, city FROM customers;
+
+-- 예제 2: 가격을 만원 단위로 표시
+SELECT name, price, ROUND(price / 10000, 0) AS "만원"
+FROM products;
+
+-- 예제 3: 도시가 없는 고객에게 '미지정' 표시
+SELECT name, COALESCE(city, '미지정') AS city
+FROM customers;
+\`\`\``,
           en: `## SELECT Statement
 
 The most fundamental command for querying data from a database.
@@ -216,7 +383,52 @@ The actual execution order of SQL differs from the written order:
 | 4 | HAVING | Filter groups |
 | 5 | SELECT | Select columns |
 | 6 | ORDER BY | Sort results |
-| 7 | LIMIT | Limit row count |`,
+| 7 | LIMIT | Limit row count |
+
+### Commonly Used Functions
+
+\`\`\`sql
+-- String functions
+SELECT UPPER(name), LOWER(email), LENGTH(name)
+FROM customers;
+
+-- Numeric functions
+SELECT ROUND(price, 0), CEIL(price), FLOOR(price)
+FROM products;
+
+-- Date functions (PostgreSQL)
+SELECT CURRENT_DATE, CURRENT_TIMESTAMP, NOW();
+SELECT signup_date, AGE(signup_date) FROM customers;
+
+-- NULL handling
+SELECT name, COALESCE(city, 'Unknown') AS city
+FROM customers;
+\`\`\`
+
+| Function | Description | Example Result |
+|----------|-------------|---------------|
+| UPPER(s) | Uppercase | 'HELLO' |
+| LOWER(s) | Lowercase | 'hello' |
+| LENGTH(s) | String length | 5 |
+| TRIM(s) | Remove whitespace | 'hello' |
+| ROUND(n, d) | Round to d decimals | 3.14 |
+| COALESCE(a, b) | Return b if a is NULL | b |
+| CAST(x AS type) | Type conversion | converted value |
+
+### Practice Examples
+
+\`\`\`sql
+-- Example 1: List all customer names and cities
+SELECT name, city FROM customers;
+
+-- Example 2: Show price in thousands
+SELECT name, price, ROUND(price / 10000, 0) AS price_in_10k
+FROM products;
+
+-- Example 3: Show 'Unknown' for customers without a city
+SELECT name, COALESCE(city, 'Unknown') AS city
+FROM customers;
+\`\`\``,
         },
       },
       {
@@ -311,7 +523,54 @@ SELECT * FROM categories WHERE parent_id IS NULL;
 SELECT * FROM customers WHERE city IS NOT NULL;
 \`\`\`
 
-> **주의**: \`= NULL\`은 동작하지 않습니다. 반드시 \`IS NULL\`을 사용하세요.`,
+> **주의**: \`= NULL\`은 동작하지 않습니다. 반드시 \`IS NULL\`을 사용하세요.
+
+### NOT (부정)
+
+\`\`\`sql
+-- NOT IN
+SELECT * FROM customers
+WHERE country NOT IN ('Korea', 'Japan');
+
+-- NOT LIKE
+SELECT * FROM products
+WHERE name NOT LIKE '%Phone%';
+
+-- NOT BETWEEN
+SELECT * FROM products
+WHERE price NOT BETWEEN 10000 AND 50000;
+
+-- NOT EXISTS (중급에서 자세히)
+SELECT * FROM customers c
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+\`\`\`
+
+### WHERE 조건 조합 실습
+
+\`\`\`sql
+-- 1) 한국 프리미엄 고객 중 서울에 사는 사람
+SELECT * FROM customers
+WHERE country = 'Korea'
+  AND is_premium = true
+  AND city = 'Seoul';
+
+-- 2) 가격 5만~10만원이고 재고 10개 이상인 상품
+SELECT name, price, stock_quantity
+FROM products
+WHERE price BETWEEN 50000 AND 100000
+  AND stock_quantity >= 10;
+
+-- 3) 배송완료 또는 취소된 최근 주문
+SELECT * FROM orders
+WHERE status IN ('delivered', 'cancelled')
+ORDER BY order_date DESC;
+
+-- 4) 이름에 'Pro'가 포함되거나 가격이 100만원 이상인 상품
+SELECT name, price FROM products
+WHERE name LIKE '%Pro%' OR price >= 1000000;
+\`\`\``,
           en: `## WHERE Clause
 
 Filters rows that satisfy specific conditions.
@@ -399,7 +658,54 @@ SELECT * FROM categories WHERE parent_id IS NULL;
 SELECT * FROM customers WHERE city IS NOT NULL;
 \`\`\`
 
-> **Note**: \`= NULL\` does not work. Always use \`IS NULL\`.`,
+> **Note**: \`= NULL\` does not work. Always use \`IS NULL\`.
+
+### NOT (Negation)
+
+\`\`\`sql
+-- NOT IN
+SELECT * FROM customers
+WHERE country NOT IN ('Korea', 'Japan');
+
+-- NOT LIKE
+SELECT * FROM products
+WHERE name NOT LIKE '%Phone%';
+
+-- NOT BETWEEN
+SELECT * FROM products
+WHERE price NOT BETWEEN 10000 AND 50000;
+
+-- NOT EXISTS (more in Intermediate)
+SELECT * FROM customers c
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+\`\`\`
+
+### WHERE Practice Examples
+
+\`\`\`sql
+-- 1) Premium customers from Korea in Seoul
+SELECT * FROM customers
+WHERE country = 'Korea'
+  AND is_premium = true
+  AND city = 'Seoul';
+
+-- 2) Products priced 50k-100k with stock >= 10
+SELECT name, price, stock_quantity
+FROM products
+WHERE price BETWEEN 50000 AND 100000
+  AND stock_quantity >= 10;
+
+-- 3) Recent delivered or cancelled orders
+SELECT * FROM orders
+WHERE status IN ('delivered', 'cancelled')
+ORDER BY order_date DESC;
+
+-- 4) Products with 'Pro' in name or price >= 1M
+SELECT name, price FROM products
+WHERE name LIKE '%Pro%' OR price >= 1000000;
+\`\`\``,
         },
       },
       {
@@ -563,6 +869,55 @@ GROUP BY status;
 SELECT category_id, ROUND(AVG(price), 0) AS avg_price
 FROM products
 GROUP BY category_id;
+\`\`\`
+
+### GROUP BY 주의사항
+
+\`\`\`sql
+-- 틀린 예: city가 GROUP BY에 없음
+SELECT country, city, COUNT(*)
+FROM customers
+GROUP BY country;  -- 에러!
+
+-- 올바른 예
+SELECT country, city, COUNT(*)
+FROM customers
+GROUP BY country, city;
+\`\`\`
+
+### 실습 예제
+
+\`\`\`sql
+-- 1) 전체 상품 수와 평균 가격
+SELECT COUNT(*) AS total_products,
+  ROUND(AVG(price), 0) AS avg_price,
+  MIN(price) AS cheapest,
+  MAX(price) AS most_expensive
+FROM products;
+
+-- 2) 나라별 고객 수 (5명 이상만)
+SELECT country, COUNT(*) AS cnt
+FROM customers
+GROUP BY country
+HAVING COUNT(*) >= 5
+ORDER BY cnt DESC;
+
+-- 3) 상품별 평균 리뷰 점수
+SELECT p.name,
+  COUNT(r.id) AS review_count,
+  ROUND(AVG(r.rating), 1) AS avg_rating
+FROM products p
+LEFT JOIN reviews r ON p.id = r.product_id
+GROUP BY p.id, p.name
+ORDER BY avg_rating DESC;
+
+-- 4) 월별 주문 건수와 매출
+SELECT DATE_TRUNC('month', order_date) AS month,
+  COUNT(*) AS orders,
+  SUM(total_amount) AS revenue
+FROM orders
+GROUP BY DATE_TRUNC('month', order_date)
+ORDER BY month;
 \`\`\``,
           en: `## Aggregate Functions
 
@@ -613,6 +968,55 @@ GROUP BY status;
 SELECT category_id, ROUND(AVG(price), 0) AS avg_price
 FROM products
 GROUP BY category_id;
+\`\`\`
+
+### GROUP BY Pitfalls
+
+\`\`\`sql
+-- Wrong: city is not in GROUP BY
+SELECT country, city, COUNT(*)
+FROM customers
+GROUP BY country;  -- Error!
+
+-- Correct
+SELECT country, city, COUNT(*)
+FROM customers
+GROUP BY country, city;
+\`\`\`
+
+### Practice Examples
+
+\`\`\`sql
+-- 1) Total products, average price
+SELECT COUNT(*) AS total_products,
+  ROUND(AVG(price), 0) AS avg_price,
+  MIN(price) AS cheapest,
+  MAX(price) AS most_expensive
+FROM products;
+
+-- 2) Countries with 5+ customers
+SELECT country, COUNT(*) AS cnt
+FROM customers
+GROUP BY country
+HAVING COUNT(*) >= 5
+ORDER BY cnt DESC;
+
+-- 3) Average rating per product
+SELECT p.name,
+  COUNT(r.id) AS review_count,
+  ROUND(AVG(r.rating), 1) AS avg_rating
+FROM products p
+LEFT JOIN reviews r ON p.id = r.product_id
+GROUP BY p.id, p.name
+ORDER BY avg_rating DESC;
+
+-- 4) Monthly order count and revenue
+SELECT DATE_TRUNC('month', order_date) AS month,
+  COUNT(*) AS orders,
+  SUM(total_amount) AS revenue
+FROM orders
+GROUP BY DATE_TRUNC('month', order_date)
+ORDER BY month;
 \`\`\``,
         },
       },
