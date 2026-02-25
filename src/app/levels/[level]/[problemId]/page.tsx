@@ -101,8 +101,21 @@ export default function ProblemWorkspacePage() {
     }
   }, [getExecutableSql, problem, dbEngine, locale, recordAttempt]);
 
+  const resetDatabase = useCallback(async () => {
+    try {
+      await fetch('/api/reset-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engine: dbEngine }),
+      });
+    } catch {
+      // Silent reset - don't block the user flow
+    }
+  }, [dbEngine]);
+
   const handleCheckAnswer = useCallback(async () => {
-    if (!problem || !sqlValue.trim()) return;
+    const execSql = getExecutableSql();
+    if (!problem || !execSql) return;
 
     setIsRunning(true);
     setQueryError(null);
@@ -114,7 +127,7 @@ export default function ProblemWorkspacePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sql: sqlValue.trim(),
+          sql: execSql,
           level: problem.level,
           engine: dbEngine,
         }),
@@ -160,6 +173,9 @@ export default function ProblemWorkspacePage() {
           // Progress save failed, but grading result is still valid
         }
       }
+
+      // Step 4: Reset DB after grading to restore clean state
+      await resetDatabase();
     } catch {
       setQueryError(
         locale === 'ko'
@@ -169,15 +185,17 @@ export default function ProblemWorkspacePage() {
     } finally {
       setIsRunning(false);
     }
-  }, [problem, sqlValue, dbEngine, hintIndex, locale, completeProblem, recordAttempt]);
+  }, [getExecutableSql, problem, sqlValue, dbEngine, hintIndex, locale, completeProblem, recordAttempt, resetDatabase]);
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
     setSqlValue('');
     setQueryResult(null);
     setQueryError(null);
     setGradingResult(null);
     setHintIndex(-1);
-  }, []);
+    // Reset DB to clean state
+    await resetDatabase();
+  }, [resetDatabase]);
 
   const handleHint = useCallback(() => {
     if (!problem) return;

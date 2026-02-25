@@ -35,8 +35,9 @@ export async function executePostgresQuery(sql: string): Promise<{
     const isDDL = DDL_PATTERN.test(sql);
 
     if (isDML) {
-      // DML: wrap in transaction and ROLLBACK to prevent permanent changes
+      // DML: execute and persist changes so user can verify with SELECT
       // Disable FK checks so DELETE/UPDATE don't fail on foreign key constraints
+      // DB will be reset after grading or via the reset button
       await client.query('BEGIN');
       await client.query("SET LOCAL session_replication_role = 'replica'");
       try {
@@ -44,12 +45,10 @@ export async function executePostgresQuery(sql: string): Promise<{
         const result = await client.query(sql);
         const executionTime = Date.now() - startTime;
 
-        const hasReturning = /\bRETURNING\b/i.test(sql);
-        // ROLLBACK to undo the DML changes
-        await client.query('ROLLBACK');
+        await client.query('COMMIT');
 
+        const hasReturning = /\bRETURNING\b/i.test(sql);
         if (hasReturning && result.fields && result.fields.length > 0) {
-          // INSERT/UPDATE/DELETE ... RETURNING: return the actual result columns
           const columns = result.fields.map((f) => f.name);
           const rows = result.rows?.map((row) => columns.map((col) => row[col])) || [];
           return { columns, rows, rowCount: result.rowCount ?? rows.length, executionTime };
@@ -107,6 +106,15 @@ export async function executePostgresQuery(sql: string): Promise<{
       rowCount: result.rowCount ?? rows.length,
       executionTime,
     };
+  } finally {
+    client.release();
+  }
+}
+
+export async function resetPostgresDatabase(initSql: string): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await client.query(initSql);
   } finally {
     client.release();
   }

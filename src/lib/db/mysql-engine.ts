@@ -36,8 +36,9 @@ export async function executeMysqlQuery(sql: string): Promise<{
     const isDDL = DDL_PATTERN.test(sql);
 
     if (isDML) {
-      // DML: wrap in transaction and ROLLBACK to prevent permanent changes
+      // DML: execute and persist changes so user can verify with SELECT
       // Disable FK checks so DELETE/UPDATE don't fail on foreign key constraints
+      // DB will be reset after grading or via the reset button
       await connection.beginTransaction();
       await connection.query('SET FOREIGN_KEY_CHECKS = 0');
       try {
@@ -48,7 +49,7 @@ export async function executeMysqlQuery(sql: string): Promise<{
         const affectedRows = resultHeader.affectedRows ?? 0;
 
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-        await connection.rollback();
+        await connection.commit();
 
         return {
           columns: ['affectedRows'],
@@ -124,6 +125,24 @@ export async function executeMysqlQuery(sql: string): Promise<{
       rowCount: resultHeader.affectedRows,
       executionTime,
     };
+  } finally {
+    connection.release();
+  }
+}
+
+export async function resetMysqlDatabase(initSql: string): Promise<void> {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    // Split by semicolons and execute each statement (mysql2 doesn't support multi-statement by default)
+    const statements = initSql
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !s.startsWith('--'));
+    for (const stmt of statements) {
+      await connection.query(stmt);
+    }
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
   } finally {
     connection.release();
   }
