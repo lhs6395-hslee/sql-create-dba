@@ -14,10 +14,9 @@ export const en: TranslationKeys = {
   },
   nav: {
     home: 'Home',
-    levels: 'Levels',
+    learn: 'Learn',
     docs: 'Theory',
     simulator: 'Simulator',
-    quiz: 'Quiz',
     progress: 'Progress',
     settings: 'Settings',
   },

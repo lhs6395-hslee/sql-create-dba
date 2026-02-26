@@ -29,14 +29,11 @@ export default function Header() {
           <Link href="/docs" className="text-muted-foreground hover:text-foreground transition-colors">
             {t('nav.docs')}
           </Link>
-          <Link href="/levels/beginner" className="text-muted-foreground hover:text-foreground transition-colors">
-            {t('nav.levels')}
+          <Link href="/learn" className="text-muted-foreground hover:text-foreground transition-colors">
+            {t('nav.learn')}
           </Link>
           <Link href="/simulator" className="text-muted-foreground hover:text-foreground transition-colors">
             {t('nav.simulator')}
-          </Link>
-          <Link href="/quiz" className="text-muted-foreground hover:text-foreground transition-colors">
-            {t('nav.quiz')}
           </Link>
         </nav>
 

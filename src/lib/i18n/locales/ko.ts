@@ -12,10 +12,9 @@ export const ko = {
   },
   nav: {
     home: '홈',
-    levels: '레벨',
+    learn: '학습',
     docs: '이론학습',
     simulator: '시뮬레이터',
-    quiz: '퀴즈',
     progress: '진행도',
     settings: '설정',
   },
