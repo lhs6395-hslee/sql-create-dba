@@ -2340,18 +2340,40 @@ Intentionally relaxing normalization for **performance**.
 
 조건을 만족하는 행을 필터링합니다.
 
+**기본 선택 연산:**
 \`\`\`
 σ_price>100000(Products)
+
+읽는 법: "시그마, price가 100000 초과, Products"
+의미: Products 테이블에서 price > 100000 조건을 만족하는 행만 선택
 
 → SQL: SELECT * FROM products WHERE price > 100000;
 \`\`\`
 
-**결합 조건:**
+**결합 조건 (∧ 사용):**
 \`\`\`
 σ_(price>100000 ∧ category_id=3)(Products)
 
-→ SQL: SELECT * FROM products WHERE price > 100000 AND category_id = 3;
+수학 기호 설명:
+• ∧ (논리곱, AND): "그리고" - 양쪽 조건을 모두 만족해야 함
+
+읽는 법: "시그마, price가 100000 초과 그리고(∧) category_id가 3, Products"
+
+의미: Products 테이블에서
+     price > 100000 이면서(AND)
+     category_id = 3인 행만 선택
+
+→ SQL: SELECT * FROM products
+       WHERE price > 100000 AND category_id = 3;
 \`\`\`
+
+**논리 연산자 종류:**
+- \`∧\` (AND, 논리곱): 모든 조건이 참이어야 함
+- \`∨\` (OR, 논리합): 최소 하나의 조건이 참이면 됨
+- \`¬\` (NOT, 부정): 조건의 반대
+
+예시: \`σ_(price>100000 ∨ category_id=1)(Products)\`
+     → SQL: \`WHERE price > 100000 OR category_id = 1\`
 
 ### 사영 (Projection) — π
 
@@ -2442,13 +2464,27 @@ WHERE p.price >= 100000;
 
 옵티마이저가 사용하는 핵심 변환 규칙입니다:
 
-| 법칙 | 설명 |
-|------|------|
-| **선택 하향** | σ를 트리 아래로 내림 → 조기 필터링으로 중간 결과 축소 |
-| **사영 하향** | π를 아래로 내림 → 불필요한 열 조기 제거 |
-| **선택 분해** | σ_(A ∧ B) = σ_A(σ_B) → 조건 분리 |
-| **조인 교환** | R ⋈ S = S ⋈ R → 조인 순서 변경 |
-| **조인 결합** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → 결합 순서 변경 |
+| 법칙 | 설명 | 수식 |
+|------|------|------|
+| **선택 하향** | σ를 트리 아래로 내림 → 조기 필터링으로 중간 결과 축소 | 최적화를 위한 위치 이동 |
+| **사영 하향** | π를 아래로 내림 → 불필요한 열 조기 제거 | 최적화를 위한 위치 이동 |
+| **선택 분해** | σ_(A ∧ B) = σ_A(σ_B) → 조건 분리 | \`σ_(price>1000 ∧ stock>0) = σ_price>1000(σ_stock>0)\` |
+| **조인 교환** | R ⋈ S = S ⋈ R → 조인 순서 변경 | 교환법칙 성립 |
+| **조인 결합** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → 결합 순서 변경 | 결합법칙 성립 |
+
+**선택 분해 상세 설명:**
+
+\`∧\` (AND) 조건은 분리할 수 있습니다:
+\`\`\`
+σ_(price>100000 ∧ category_id=3)(Products)
+=
+σ_price>100000(σ_category_id=3(Products))
+
+의미: "두 조건을 한 번에 체크" = "조건을 순차적으로 체크"
+
+장점: 인덱스가 있는 조건을 먼저 적용하여 성능 최적화 가능
+      (예: category_id에 인덱스가 있다면 먼저 필터링)
+\`\`\`
 
 > 이 법칙들은 쿼리 옵티마이저가 수백 개의 실행 계획 중 최적을 선택하는 기초입니다.`,
           en: `## Relational Algebra
@@ -2470,18 +2506,40 @@ Relational algebra is the **mathematical foundation** of relational databases. W
 
 Filters rows that satisfy a condition.
 
+**Basic selection operation:**
 \`\`\`
 σ_price>100000(Products)
+
+How to read: "sigma, price greater than 100000, Products"
+Meaning: Select from Products table only rows where price > 100000
 
 → SQL: SELECT * FROM products WHERE price > 100000;
 \`\`\`
 
-**Combined conditions:**
+**Combined conditions (using ∧):**
 \`\`\`
 σ_(price>100000 ∧ category_id=3)(Products)
 
-→ SQL: SELECT * FROM products WHERE price > 100000 AND category_id = 3;
+Mathematical symbol explanation:
+• ∧ (conjunction, AND): "and" - both conditions must be satisfied
+
+How to read: "sigma, price greater than 100000 and (∧) category_id equals 3, Products"
+
+Meaning: Select from Products table rows where
+        price > 100000 AND
+        category_id = 3
+
+→ SQL: SELECT * FROM products
+       WHERE price > 100000 AND category_id = 3;
 \`\`\`
+
+**Logical operators:**
+- \`∧\` (AND, conjunction): All conditions must be true
+- \`∨\` (OR, disjunction): At least one condition must be true
+- \`¬\` (NOT, negation): Opposite of the condition
+
+Example: \`σ_(price>100000 ∨ category_id=1)(Products)\`
+        → SQL: \`WHERE price > 100000 OR category_id = 1\`
 
 ### Projection — π
 
@@ -2572,13 +2630,27 @@ WHERE p.price >= 100000;
 
 Core transformation rules used by the optimizer:
 
-| Law | Description |
-|-----|-------------|
-| **Selection pushdown** | Push σ down the tree → early filtering reduces intermediate results |
-| **Projection pushdown** | Push π down → remove unnecessary columns early |
-| **Selection decomposition** | σ_(A ∧ B) = σ_A(σ_B) → split conditions |
-| **Join commutativity** | R ⋈ S = S ⋈ R → swap join order |
-| **Join associativity** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → reorder grouping |
+| Law | Description | Formula |
+|-----|-------------|---------|
+| **Selection pushdown** | Push σ down the tree → early filtering reduces intermediate results | Optimization via repositioning |
+| **Projection pushdown** | Push π down → remove unnecessary columns early | Optimization via repositioning |
+| **Selection decomposition** | σ_(A ∧ B) = σ_A(σ_B) → split conditions | \`σ_(price>1000 ∧ stock>0) = σ_price>1000(σ_stock>0)\` |
+| **Join commutativity** | R ⋈ S = S ⋈ R → swap join order | Commutative property holds |
+| **Join associativity** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → reorder grouping | Associative property holds |
+
+**Selection Decomposition Details:**
+
+\`∧\` (AND) conditions can be split:
+\`\`\`
+σ_(price>100000 ∧ category_id=3)(Products)
+=
+σ_price>100000(σ_category_id=3(Products))
+
+Meaning: "Check both conditions at once" = "Check conditions sequentially"
+
+Benefit: Can apply indexed condition first for better performance
+        (e.g., if category_id has an index, filter by it first)
+\`\`\`
 
 > These laws form the basis for the query optimizer selecting the best plan among hundreds of possible execution plans.`,
         },
@@ -2596,43 +2668,144 @@ Core transformation rules used by the optimizer:
 
 변수가 **튜플(행)**을 나타냅니다.
 
+#### 기본 형식
+
 \`\`\`
 형식: { t | P(t) }
 의미: 조건 P를 만족하는 모든 튜플 t의 집합
+\`\`\`
 
-예시: 가격 10만 이상 상품
+**수학 기호 설명:**
+- \`∈\` (원소) : "~에 속한다" (member of)
+- \`∧\` (논리곱) : "그리고" (AND)
+- \`∨\` (논리합) : "또는" (OR)
+- \`∃\` (존재 한정자) : "~가 존재한다" (there exists)
+- \`∀\` (전체 한정자) : "모든 ~에 대해" (for all)
+
+#### 예시 1: 단순 조건 필터링
+
+**문제:** 가격이 10만원 이상인 상품을 찾으시오.
+
+\`\`\`
+관계 해석:
 { t | t ∈ Products ∧ t.price > 100000 }
-→ SQL: SELECT * FROM products WHERE price > 100000;
+
+해석 (일반 언어):
+"Products 테이블에 속하고(∈), 가격이 10만원 초과인(∧) 모든 튜플 t"
+
+동등한 SQL:
+SELECT * FROM products WHERE price > 100000;
 \`\`\`
 
-**존재 한정자 (∃):**
+#### 예시 2: 존재 한정자 (∃) 사용
+
+**문제:** 주문이 있는 고객을 찾으시오.
+
 \`\`\`
-주문이 있는 고객:
+관계 해석:
 { c | c ∈ Customers ∧ ∃o(o ∈ Orders ∧ o.customer_id = c.id) }
-→ SQL: SELECT * FROM customers c
-       WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
+
+해석 (일반 언어):
+"Customers에 속하는 고객 c 중에서,
+ Orders에 속하는 주문 o가 존재하고(∃),
+ 그 주문의 customer_id가 c.id와 같은(∧) 모든 고객"
+
+의미: "최소 한 건 이상의 주문이 있는 고객"
+
+동등한 SQL:
+SELECT * FROM customers c
+WHERE EXISTS (
+  SELECT 1 FROM orders o
+  WHERE o.customer_id = c.id
+);
 \`\`\`
 
-**전체 한정자 (∀):**
+#### 예시 3: 전체 한정자 (∀) 사용
+
+**문제:** 모든 상품을 주문한 고객을 찾으시오.
+
 \`\`\`
-모든 상품을 주문한 고객:
-{ c | c ∈ Customers ∧ ∀p(p ∈ Products →
-      ∃oi(oi ∈ OrderItems ∧ oi.product_id = p.id ∧
-          ∃o(o ∈ Orders ∧ o.id = oi.order_id ∧ o.customer_id = c.id))) }
-→ SQL: 관계 나눗셈(Division)으로 구현 (NOT EXISTS + NOT EXISTS)
+관계 해석:
+{ c | c ∈ Customers ∧
+      ∀p(p ∈ Products →
+          ∃oi(oi ∈ OrderItems ∧ oi.product_id = p.id ∧
+              ∃o(o ∈ Orders ∧ o.id = oi.order_id ∧ o.customer_id = c.id))) }
+
+해석 (일반 언어):
+"Customers에 속하는 고객 c 중에서,
+ 모든 상품 p에 대해(∀),
+ 다음이 성립하는 고객:
+   - 주문항목 oi가 존재하고(∃)
+   - 그 항목의 product_id가 p.id이며(∧)
+   - 주문 o가 존재하고(∃)
+   - 그 주문의 id가 oi.order_id이며(∧)
+   - 그 주문의 customer_id가 c.id인 경우"
+
+의미: "상품 목록의 모든 상품을 한 번 이상 주문한 고객"
+
+동등한 SQL (관계 나눗셈 구현):
+SELECT c.*
+FROM customers c
+WHERE NOT EXISTS (
+  SELECT p.id FROM products p
+  WHERE NOT EXISTS (
+    SELECT 1 FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    WHERE o.customer_id = c.id
+      AND oi.product_id = p.id
+  )
+);
 \`\`\`
 
 ### 도메인 관계 해석 (Domain Relational Calculus, DRC)
 
-변수가 **도메인 값(속성값)**을 나타냅니다.
+변수가 **도메인 값(속성값)**을 나타냅니다. TRC가 튜플 전체를 변수로 다루는 반면, DRC는 개별 속성값을 변수로 다룹니다.
+
+#### 기본 형식
 
 \`\`\`
 형식: { <x1, x2, ...> | P(x1, x2, ...) }
-
-예시: 가격 10만 이상 상품의 이름과 가격
-{ <n, p> | ∃id,cid,s(Products(id, n, cid, p, s) ∧ p > 100000) }
-→ SQL: SELECT name, price FROM products WHERE price > 100000;
+의미: 조건 P를 만족하는 속성값 조합 <x1, x2, ...>의 집합
 \`\`\`
+
+#### 예시: 가격 10만원 이상 상품의 이름과 가격
+
+**문제:** 가격이 10만원 이상인 상품의 이름과 가격만 조회하시오.
+
+\`\`\`
+관계 해석:
+{ <n, p> | ∃id,cid,s(Products(id, n, cid, p, s) ∧ p > 100000) }
+
+해석 (일반 언어):
+"이름(n)과 가격(p) 쌍 중에서,
+ id, cid(category_id), s(stock) 값이 존재하여(∃),
+ Products 테이블에 (id, n, cid, p, s) 튜플이 있고(∧),
+ 가격 p가 10만원을 초과하는 모든 <n, p> 쌍"
+
+변수 설명:
+- n: name (상품명)
+- p: price (가격)
+- id: 상품 ID
+- cid: category_id (카테고리 ID)
+- s: stock (재고)
+
+의미: "Products(id, name, category_id, price, stock) 테이블에서
+      가격이 10만원 초과인 상품의 이름과 가격"
+
+동등한 SQL:
+SELECT name, price
+FROM products
+WHERE price > 100000;
+\`\`\`
+
+**TRC vs DRC 비교:**
+
+| 측면 | TRC | DRC |
+|------|-----|-----|
+| **변수 단위** | 튜플 전체 (예: \`t ∈ Products\`) | 개별 속성값 (예: \`<n, p>\`) |
+| **표현 방식** | \`{ t \| t.price > 100000 }\` | \`{ <n, p> \| Products(...) ∧ p > 100000 }\` |
+| **사용 편의성** | 전체 행을 다룰 때 간단 | 특정 열만 추출할 때 명확 |
+| **SQL 유사성** | SELECT * 에 가까움 | SELECT 특정컬럼 에 가까움 |
 
 ### 관계 대수 vs 관계 해석 vs SQL
 
@@ -2661,43 +2834,144 @@ While relational algebra describes **"how" to get data** (procedural), relationa
 
 Variables represent **tuples (rows)**.
 
+#### Basic Form
+
 \`\`\`
 Form: { t | P(t) }
 Meaning: Set of all tuples t satisfying condition P
+\`\`\`
 
-Example: Products priced over 100K
+**Mathematical Symbols:**
+- \`∈\` (element of) : "belongs to" (member of)
+- \`∧\` (conjunction) : "and" (AND)
+- \`∨\` (disjunction) : "or" (OR)
+- \`∃\` (existential quantifier) : "there exists"
+- \`∀\` (universal quantifier) : "for all"
+
+#### Example 1: Simple Condition Filter
+
+**Problem:** Find products priced over 100K.
+
+\`\`\`
+Relational calculus:
 { t | t ∈ Products ∧ t.price > 100000 }
-→ SQL: SELECT * FROM products WHERE price > 100000;
+
+Interpretation (plain language):
+"All tuples t that belong to Products (∈) and (∧) have price > 100000"
+
+Equivalent SQL:
+SELECT * FROM products WHERE price > 100000;
 \`\`\`
 
-**Existential quantifier (∃):**
+#### Example 2: Using Existential Quantifier (∃)
+
+**Problem:** Find customers who have placed at least one order.
+
 \`\`\`
-Customers who have orders:
+Relational calculus:
 { c | c ∈ Customers ∧ ∃o(o ∈ Orders ∧ o.customer_id = c.id) }
-→ SQL: SELECT * FROM customers c
-       WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
+
+Interpretation (plain language):
+"All customers c in Customers such that
+ there exists (∃) an order o in Orders where (∧)
+ that order's customer_id equals c.id"
+
+Meaning: "Customers with at least one order"
+
+Equivalent SQL:
+SELECT * FROM customers c
+WHERE EXISTS (
+  SELECT 1 FROM orders o
+  WHERE o.customer_id = c.id
+);
 \`\`\`
 
-**Universal quantifier (∀):**
+#### Example 3: Using Universal Quantifier (∀)
+
+**Problem:** Find customers who have ordered every product.
+
 \`\`\`
-Customers who ordered every product:
-{ c | c ∈ Customers ∧ ∀p(p ∈ Products →
-      ∃oi(oi ∈ OrderItems ∧ oi.product_id = p.id ∧
-          ∃o(o ∈ Orders ∧ o.id = oi.order_id ∧ o.customer_id = c.id))) }
-→ SQL: Implemented via relational division (NOT EXISTS + NOT EXISTS)
+Relational calculus:
+{ c | c ∈ Customers ∧
+      ∀p(p ∈ Products →
+          ∃oi(oi ∈ OrderItems ∧ oi.product_id = p.id ∧
+              ∃o(o ∈ Orders ∧ o.id = oi.order_id ∧ o.customer_id = c.id))) }
+
+Interpretation (plain language):
+"All customers c in Customers such that
+ for all products p (∀),
+ the following holds:
+   - there exists (∃) an order item oi where
+   - that item's product_id is p.id, and (∧)
+   - there exists (∃) an order o where
+   - that order's id is oi.order_id, and (∧)
+   - that order's customer_id is c.id"
+
+Meaning: "Customers who have ordered all products at least once"
+
+Equivalent SQL (relational division):
+SELECT c.*
+FROM customers c
+WHERE NOT EXISTS (
+  SELECT p.id FROM products p
+  WHERE NOT EXISTS (
+    SELECT 1 FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    WHERE o.customer_id = c.id
+      AND oi.product_id = p.id
+  )
+);
 \`\`\`
 
 ### Domain Relational Calculus (DRC)
 
-Variables represent **domain values (attribute values)**.
+Variables represent **domain values (attribute values)**. While TRC uses entire tuples as variables, DRC uses individual attribute values.
+
+#### Basic Form
 
 \`\`\`
 Form: { <x1, x2, ...> | P(x1, x2, ...) }
-
-Example: Name and price of products over 100K
-{ <n, p> | ∃id,cid,s(Products(id, n, cid, p, s) ∧ p > 100000) }
-→ SQL: SELECT name, price FROM products WHERE price > 100000;
+Meaning: Set of attribute value combinations <x1, x2, ...> satisfying condition P
 \`\`\`
+
+#### Example: Name and price of products over 100K
+
+**Problem:** Retrieve only name and price of products priced over 100K.
+
+\`\`\`
+Relational calculus:
+{ <n, p> | ∃id,cid,s(Products(id, n, cid, p, s) ∧ p > 100000) }
+
+Interpretation (plain language):
+"All <name, price> pairs where
+ there exist (∃) values id, cid (category_id), s (stock) such that
+ tuple (id, n, cid, p, s) exists in Products and (∧)
+ price p exceeds 100000"
+
+Variable description:
+- n: name (product name)
+- p: price
+- id: product ID
+- cid: category_id
+- s: stock quantity
+
+Meaning: "From Products(id, name, category_id, price, stock) table,
+         return name and price where price > 100000"
+
+Equivalent SQL:
+SELECT name, price
+FROM products
+WHERE price > 100000;
+\`\`\`
+
+**TRC vs DRC Comparison:**
+
+| Aspect | TRC | DRC |
+|--------|-----|-----|
+| **Variable unit** | Entire tuple (e.g., \`t ∈ Products\`) | Individual attribute values (e.g., \`<n, p>\`) |
+| **Expression style** | \`{ t \| t.price > 100000 }\` | \`{ <n, p> \| Products(...) ∧ p > 100000 }\` |
+| **Ease of use** | Simpler for entire rows | Clearer for specific columns |
+| **SQL similarity** | Closer to SELECT * | Closer to SELECT specific_columns |
 
 ### Relational Algebra vs Calculus vs SQL
 
@@ -2873,11 +3147,48 @@ CREATE TABLE professor_hobbies (
 
 ### 정규형 관계도
 
+정규화는 단계적으로 진행되며, 각 단계는 이전 단계의 조건을 모두 만족합니다.
+
 \`\`\`
-1NF ⊃ 2NF ⊃ 3NF ⊃ BCNF ⊃ 4NF ⊃ 5NF
- ↑                                     ↑
-모든 릴레이션               실무에서는 거의 여기까지
-\`\`\``,
+┌─────────────────────────────────────────────────────────────┐
+│  1NF (제1정규형) - 모든 릴레이션의 시작점                      │
+│  • 원자값만 허용 (배열, 중첩 테이블 불가)                      │
+└─────────────────────────────────────────────────────────────┘
+                         ↓ 포함 관계 (⊃)
+┌─────────────────────────────────────────────────────────────┐
+│  2NF (제2정규형)                                             │
+│  • 1NF 만족 + 부분 함수 종속 제거                            │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  3NF (제3정규형) ← 실무 목표                                 │
+│  • 2NF 만족 + 이행 함수 종속 제거                            │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  BCNF (Boyce-Codd 정규형)                                   │
+│  • 3NF 만족 + 모든 결정자가 후보키                           │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  4NF (제4정규형)                                             │
+│  • BCNF 만족 + 다치 종속 제거                                │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  5NF (제5정규형)                                             │
+│  • 4NF 만족 + 조인 종속 제거                                 │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+**포함 관계 (⊃) 의미:**
+- \`1NF ⊃ 2NF\`: "1NF는 2NF를 포함한다" = "모든 2NF 릴레이션은 1NF이다"
+- 상위 정규형일수록 더 엄격한 조건을 만족
+
+**실무 권장사항:**
+- 대부분의 애플리케이션: **3NF까지 정규화** (성능과 무결성의 균형)
+- BCNF 이상: 특수한 경우에만 적용 (과도한 정규화는 조인 증가)
+- 읽기 중심 시스템: 의도적 비정규화(denormalization)로 성능 최적화`,
           en: `## Functional Dependencies (FD)
 
 The core theory behind normalization. If attribute set X **functionally determines** Y, we write X → Y.
@@ -3026,11 +3337,48 @@ CREATE TABLE professor_hobbies (
 
 ### Normal Form Hierarchy
 
+Normalization proceeds in stages, with each stage satisfying all conditions of the previous stages.
+
 \`\`\`
-1NF ⊃ 2NF ⊃ 3NF ⊃ BCNF ⊃ 4NF ⊃ 5NF
- ↑                                     ↑
-All relations              Practical limit in practice
-\`\`\``,
+┌─────────────────────────────────────────────────────────────┐
+│  1NF (First Normal Form) - Starting point for all relations  │
+│  • Only atomic values (no arrays or nested tables)           │
+└─────────────────────────────────────────────────────────────┘
+                         ↓ Containment (⊃)
+┌─────────────────────────────────────────────────────────────┐
+│  2NF (Second Normal Form)                                    │
+│  • Satisfies 1NF + eliminates partial dependencies          │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  3NF (Third Normal Form) ← Practical target                 │
+│  • Satisfies 2NF + eliminates transitive dependencies       │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  BCNF (Boyce-Codd Normal Form)                              │
+│  • Satisfies 3NF + every determinant is a candidate key     │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  4NF (Fourth Normal Form)                                    │
+│  • Satisfies BCNF + eliminates multivalued dependencies     │
+└─────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────┐
+│  5NF (Fifth Normal Form)                                     │
+│  • Satisfies 4NF + eliminates join dependencies             │
+└─────────────────────────────────────────────────────────────┘
+\`\`\`
+
+**Containment relationship (⊃) meaning:**
+- \`1NF ⊃ 2NF\`: "1NF contains 2NF" = "Every 2NF relation is also 1NF"
+- Higher normal forms have stricter requirements
+
+**Practical recommendations:**
+- Most applications: **Normalize to 3NF** (balance between performance and integrity)
+- BCNF and beyond: Apply only in special cases (over-normalization increases joins)
+- Read-heavy systems: Intentional denormalization for performance optimization`,
         },
       },
       {
