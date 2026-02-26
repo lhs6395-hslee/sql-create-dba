@@ -78,62 +78,72 @@ export const docChapters: DocChapter[] = [
 
 ### 이 플랫폼의 스키마
 
-\`\`\`
-customers (고객)
-├── id          SERIAL PRIMARY KEY
-├── name        VARCHAR(100) NOT NULL
-├── email       VARCHAR(150) UNIQUE NOT NULL
-├── city        VARCHAR(50)
-├── country     VARCHAR(50)
-├── signup_date DATE
-└── is_premium  BOOLEAN DEFAULT FALSE
+#### 📋 **customers** (고객)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(100) | NOT NULL |
+| email | VARCHAR(150) | UNIQUE NOT NULL |
+| city | VARCHAR(50) | |
+| country | VARCHAR(50) | |
+| signup_date | DATE | |
+| is_premium | BOOLEAN | DEFAULT FALSE |
 
-categories (카테고리)
-├── id          SERIAL PRIMARY KEY
-├── name        VARCHAR(50) NOT NULL
-└── parent_id   INTEGER → categories(id) (자기참조 FK)
+#### 📂 **categories** (카테고리)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(50) | NOT NULL |
+| parent_id | INTEGER | FK → categories(id) (자기참조) |
 
-products (상품)
-├── id              SERIAL PRIMARY KEY
-├── name            VARCHAR(200) NOT NULL
-├── category_id     INTEGER → categories(id)
-├── price           DECIMAL(10,2) NOT NULL
-├── stock_quantity  INTEGER DEFAULT 0
-└── created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+#### 📦 **products** (상품)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(200) | NOT NULL |
+| category_id | INTEGER | FK → categories(id) |
+| price | DECIMAL(10,2) | NOT NULL |
+| stock_quantity | INTEGER | DEFAULT 0 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
 
-orders (주문)
-├── id            SERIAL PRIMARY KEY
-├── customer_id   INTEGER → customers(id)
-├── order_date    TIMESTAMP NOT NULL
-├── status        VARCHAR(20) CHECK (pending/processing/shipped/delivered/cancelled)
-└── total_amount  DECIMAL(12,2)
+#### 🛒 **orders** (주문)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| customer_id | INTEGER | FK → customers(id) |
+| order_date | TIMESTAMP | NOT NULL |
+| status | VARCHAR(20) | CHECK (pending/processing/shipped/delivered/cancelled) |
+| total_amount | DECIMAL(12,2) | |
 
-order_items (주문 상세)
-├── id          SERIAL PRIMARY KEY
-├── order_id    INTEGER → orders(id)
-├── product_id  INTEGER → products(id)
-├── quantity    INTEGER NOT NULL
-└── unit_price  DECIMAL(10,2) NOT NULL
+#### 📝 **order_items** (주문 상세)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| order_id | INTEGER | FK → orders(id) |
+| product_id | INTEGER | FK → products(id) |
+| quantity | INTEGER | NOT NULL |
+| unit_price | DECIMAL(10,2) | NOT NULL |
 
-reviews (리뷰)
-├── id          SERIAL PRIMARY KEY
-├── product_id  INTEGER → products(id)
-├── customer_id INTEGER → customers(id)
-├── rating      INTEGER CHECK (1~5)
-├── comment     TEXT
-└── created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-\`\`\`
+#### ⭐ **reviews** (리뷰)
+| 컬럼 | 타입 | 제약조건 |
+|------|------|----------|
+| id | SERIAL | PRIMARY KEY |
+| product_id | INTEGER | FK → products(id) |
+| customer_id | INTEGER | FK → customers(id) |
+| rating | INTEGER | CHECK (1~5) |
+| comment | TEXT | |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
 
 ### 테이블 간 관계도 (ERD)
 
-\`\`\`
-customers ──< orders ──< order_items >── products
-    │                                       │
-    └─────── reviews ──────────────────────┘
-                                 categories (self-ref)
-\`\`\`
-- \`──<\` : 1:N 관계 (한 고객이 여러 주문)
-- \`>──\` : N:1 관계 (여러 주문항목이 하나의 상품)`,
+**주요 관계:**
+- **customers → orders**: 1:N 관계 (한 고객이 여러 주문 가능)
+- **orders → order_items**: 1:N 관계 (한 주문에 여러 주문 항목 가능)
+- **products → order_items**: 1:N 관계 (한 상품이 여러 주문 항목에 포함 가능)
+- **customers → reviews**: 1:N 관계 (한 고객이 여러 리뷰 작성 가능)
+- **products → reviews**: 1:N 관계 (한 상품에 여러 리뷰 가능)
+- **categories → categories**: 자기참조 관계 (parent_id로 계층 구조 형성)
+- **categories → products**: 1:N 관계 (한 카테고리에 여러 상품 가능)`,
           en: `## What is SQL?
 
 **SQL** (Structured Query Language) is the standard language for managing and manipulating data in relational databases.
@@ -186,62 +196,72 @@ customers ──< orders ──< order_items >── products
 
 ### Platform Schema
 
-\`\`\`
-customers
-├── id          SERIAL PRIMARY KEY
-├── name        VARCHAR(100) NOT NULL
-├── email       VARCHAR(150) UNIQUE NOT NULL
-├── city        VARCHAR(50)
-├── country     VARCHAR(50)
-├── signup_date DATE
-└── is_premium  BOOLEAN DEFAULT FALSE
+#### 📋 **customers** (Customers)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(100) | NOT NULL |
+| email | VARCHAR(150) | UNIQUE NOT NULL |
+| city | VARCHAR(50) | |
+| country | VARCHAR(50) | |
+| signup_date | DATE | |
+| is_premium | BOOLEAN | DEFAULT FALSE |
 
-categories
-├── id          SERIAL PRIMARY KEY
-├── name        VARCHAR(50) NOT NULL
-└── parent_id   INTEGER → categories(id) (self-referencing FK)
+#### 📂 **categories** (Categories)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(50) | NOT NULL |
+| parent_id | INTEGER | FK → categories(id) (self-referencing) |
 
-products
-├── id              SERIAL PRIMARY KEY
-├── name            VARCHAR(200) NOT NULL
-├── category_id     INTEGER → categories(id)
-├── price           DECIMAL(10,2) NOT NULL
-├── stock_quantity  INTEGER DEFAULT 0
-└── created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+#### 📦 **products** (Products)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| name | VARCHAR(200) | NOT NULL |
+| category_id | INTEGER | FK → categories(id) |
+| price | DECIMAL(10,2) | NOT NULL |
+| stock_quantity | INTEGER | DEFAULT 0 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
 
-orders
-├── id            SERIAL PRIMARY KEY
-├── customer_id   INTEGER → customers(id)
-├── order_date    TIMESTAMP NOT NULL
-├── status        VARCHAR(20) CHECK (pending/processing/shipped/delivered/cancelled)
-└── total_amount  DECIMAL(12,2)
+#### 🛒 **orders** (Orders)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| customer_id | INTEGER | FK → customers(id) |
+| order_date | TIMESTAMP | NOT NULL |
+| status | VARCHAR(20) | CHECK (pending/processing/shipped/delivered/cancelled) |
+| total_amount | DECIMAL(12,2) | |
 
-order_items
-├── id          SERIAL PRIMARY KEY
-├── order_id    INTEGER → orders(id)
-├── product_id  INTEGER → products(id)
-├── quantity    INTEGER NOT NULL
-└── unit_price  DECIMAL(10,2) NOT NULL
+#### 📝 **order_items** (Order Items)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| order_id | INTEGER | FK → orders(id) |
+| product_id | INTEGER | FK → products(id) |
+| quantity | INTEGER | NOT NULL |
+| unit_price | DECIMAL(10,2) | NOT NULL |
 
-reviews
-├── id          SERIAL PRIMARY KEY
-├── product_id  INTEGER → products(id)
-├── customer_id INTEGER → customers(id)
-├── rating      INTEGER CHECK (1~5)
-├── comment     TEXT
-└── created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-\`\`\`
+#### ⭐ **reviews** (Reviews)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| product_id | INTEGER | FK → products(id) |
+| customer_id | INTEGER | FK → customers(id) |
+| rating | INTEGER | CHECK (1~5) |
+| comment | TEXT | |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
 
 ### Table Relationships (ERD)
 
-\`\`\`
-customers ──< orders ──< order_items >── products
-    │                                       │
-    └─────── reviews ──────────────────────┘
-                                 categories (self-ref)
-\`\`\`
-- \`──<\` : 1:N relationship (one customer, many orders)
-- \`>──\` : N:1 relationship (many order items, one product)`,
+**Key Relationships:**
+- **customers → orders**: 1:N relationship (one customer can have many orders)
+- **orders → order_items**: 1:N relationship (one order can have many order items)
+- **products → order_items**: 1:N relationship (one product can appear in many order items)
+- **customers → reviews**: 1:N relationship (one customer can write many reviews)
+- **products → reviews**: 1:N relationship (one product can have many reviews)
+- **categories → categories**: Self-referencing relationship (parent_id creates hierarchical structure)
+- **categories → products**: 1:N relationship (one category can contain many products)`,
         },
       },
       {
