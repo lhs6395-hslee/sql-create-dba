@@ -294,6 +294,7 @@ sql-create-dba/
 ### SQL Editor
 
 - **CodeMirror 6** 기반 문법 하이라이팅 + 자동완성
+- **VSCode Dark Plus 테마** SQL 구문 색상 강조 (react-syntax-highlighter)
 - **Ctrl+Enter** 단축키로 즉시 실행
 - 선택 영역만 실행 가능
 - PostgreSQL / MySQL 방언 자동 전환
@@ -337,6 +338,18 @@ sql-create-dba/
 - **파티션 테이블** — RANGE/LIST/HASH 탭 전환
 - **함수 vs 프로시저** — 실행 흐름 비교
 - **LOB 저장 전략** — 데이터 크기별 4단계 티어
+- **트랜잭션 격리 수준** — READ UNCOMMITTED/COMMITTED/REPEATABLE READ/SERIALIZABLE 비교 (문제점 시각화)
+- **정규화 과정** — UNF → 1NF → 2NF → 3NF → BCNF 단계별 변환 예시
+- **인덱스 구조 (B-tree)** — 클릭 가능한 노드로 탐색 과정 시각화
+- **InnoDB 아키텍처** — 메모리/디스크 레이어 구조 (Buffer Pool, Redo Log, Doublewrite Buffer 등)
+- **PostgreSQL 프로세스 아키텍처** — 클라이언트 연결부터 Background Writers까지 전체 흐름
+
+**문서 가독성 개선**:
+
+- **수학 기호 설명** — 관계 대수/관계 해석의 ∃(존재 한정자), ∀(전체 한정자), ⊃(포함) 등 기호에 대한 평문 해석 추가
+- **정규화 표현** — `1NF ⊃ 2NF ⊃ 3NF` 같은 추상적 표현을 단계별 박스 다이어그램으로 변환
+- **SQL 구문 색상 강조** — 모든 SQL 코드 블록에 VSCode Dark Plus 테마 구문 강조 적용
+- **구조화된 마크다운** — ASCII 다이어그램을 표, 리스트, 비교 차트로 변환하여 가독성 향상
 
 ### Dual Database Engine
 
