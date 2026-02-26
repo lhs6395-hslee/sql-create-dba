@@ -700,6 +700,291 @@ CREATE TABLE reviews (
         },
       },
       {
+        id: 'erd-modeling',
+        title: { ko: 'ERD: 개체-관계 모델링', en: 'ERD: Entity-Relationship Modeling' },
+        level: 'beginner',
+        content: {
+          ko: `## ERD (Entity-Relationship Diagram)
+
+**ERD**(개체-관계 다이어그램)는 데이터베이스의 **테이블(Entity)**과 **관계(Relationship)**를 시각적으로 표현한 설계도입니다.
+
+---
+
+## 핵심 구성 요소
+
+### 1. 개체 (Entity) — 테이블
+
+| 구성 | 설명 | 예시 |
+|------|------|------|
+| **개체명** | 테이블 이름 | customers, orders, products |
+| **속성 (Attribute)** | 컬럼 | id, name, email, price |
+| **기본키 (PK)** | 행을 고유 식별 | id (SERIAL / AUTO_INCREMENT) |
+
+### 2. 카디널리티 (Cardinality)
+
+| 카디널리티 | 의미 | 예시 |
+|------------|------|------|
+| **1:1** | 한 행 ↔ 한 행 | customers ↔ customer_profiles |
+| **1:N** | 한 행 → 여러 행 | customers → orders |
+| **N:M** | 여러 행 ↔ 여러 행 | products ↔ orders (order_items 중간 테이블) |
+| **Self-ref** | 자기 자신 참조 | categories → categories (parent_id) |
+
+---
+
+## 관계 유형 상세
+
+### 1:1 관계 — FK에 UNIQUE
+
+\`\`\`sql
+CREATE TABLE customer_profiles (
+    id          SERIAL PRIMARY KEY,
+    customer_id INTEGER UNIQUE NOT NULL,  -- UNIQUE = 1:1 보장
+    bio         TEXT,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+\`\`\`
+
+### 1:N 관계 — 가장 흔한 관계
+
+\`\`\`sql
+CREATE TABLE orders (
+    id          SERIAL PRIMARY KEY,
+    customer_id INTEGER NOT NULL,
+    order_date  DATE NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- 한 고객의 모든 주문
+SELECT c.name, o.id, o.total_amount
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+WHERE c.id = 1;
+\`\`\`
+
+### N:M 관계 — 중간 테이블 (Junction Table)
+
+\`\`\`sql
+-- order_items가 orders ↔ products 를 연결
+CREATE TABLE order_items (
+    id         SERIAL PRIMARY KEY,
+    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    quantity   INTEGER NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL
+);
+
+-- 주문 1의 모든 상품 (N:M → JOIN 2번)
+SELECT p.name, oi.quantity, oi.unit_price
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.order_id = 1;
+\`\`\`
+
+### Self-Referencing — 자기 참조
+
+\`\`\`sql
+CREATE TABLE categories (
+    id        SERIAL PRIMARY KEY,
+    name      VARCHAR(100) NOT NULL,
+    parent_id INTEGER REFERENCES categories(id)
+);
+
+-- 하위 카테고리 조회 (Self JOIN)
+SELECT c.name AS category, p.name AS parent
+FROM categories c
+LEFT JOIN categories p ON c.parent_id = p.id;
+\`\`\`
+
+---
+
+## E-Commerce ERD (본 플랫폼)
+
+\`\`\`
+customers ──1:1── customer_profiles
+    │ 1:N              │ 1:N
+    ▼                  ▼
+  orders            reviews ◄──1:N── products
+    │ 1:N                              │ N:1
+    ▼                                  ▼
+ order_items ────N:M──── products   categories
+                                    ▲ self-ref
+                                    └───┘
+\`\`\`
+
+### 관계 요약
+
+| 관계 | 유형 | FK 위치 | 설명 |
+|------|------|---------|------|
+| customers ↔ customer_profiles | 1:1 | customer_profiles.customer_id (UNIQUE) | 고객 프로필 |
+| customers → orders | 1:N | orders.customer_id | 한 고객, 여러 주문 |
+| customers → reviews | 1:N | reviews.customer_id | 한 고객, 여러 리뷰 |
+| orders → order_items | 1:N | order_items.order_id | 한 주문, 여러 상품 |
+| products ↔ orders | N:M | order_items (중간 테이블) | 상품-주문 다대다 |
+| products → reviews | 1:N | reviews.product_id | 한 상품, 여러 리뷰 |
+| categories → products | 1:N | products.category_id | 카테고리별 상품 |
+| categories → categories | Self | categories.parent_id | 카테고리 계층 |
+
+---
+
+## Crow's Foot 표기법
+
+\`\`\`
+──||──  : 정확히 1 (필수)      ──|○──  : 0 또는 1
+──<──   : 다수 (Many)          ──○<──  : 0 이상
+\`\`\`
+
+---
+
+## PostgreSQL vs MySQL 차이
+
+| 기능 | PostgreSQL | MySQL |
+|------|-----------|-------|
+| 자동 증가 PK | \`SERIAL\` / \`GENERATED ALWAYS AS IDENTITY\` | \`AUTO_INCREMENT\` |
+| FK 지원 | 모든 테이블 | **InnoDB**에서만 |
+| Deferred FK | \`DEFERRABLE INITIALLY DEFERRED\` 지원 | 미지원 |
+| CASCADE | \`ON DELETE CASCADE / SET NULL / RESTRICT\` | 동일 |`,
+          en: `## ERD (Entity-Relationship Diagram)
+
+An **ERD** is a visual blueprint showing the **tables (Entities)** and **relationships** in a database.
+
+---
+
+## Core Components
+
+### 1. Entity — Table
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| **Entity name** | Table name | customers, orders, products |
+| **Attribute** | Columns | id, name, email, price |
+| **Primary Key (PK)** | Uniquely identifies a row | id (SERIAL / AUTO_INCREMENT) |
+
+### 2. Cardinality
+
+| Cardinality | Meaning | Example |
+|-------------|---------|---------|
+| **1:1** | One row ↔ One row | customers ↔ customer_profiles |
+| **1:N** | One row → Many rows | customers → orders |
+| **N:M** | Many rows ↔ Many rows | products ↔ orders (via order_items) |
+| **Self-ref** | References itself | categories → categories (parent_id) |
+
+---
+
+## Relationship Types in Detail
+
+### 1:1 — FK with UNIQUE
+
+\`\`\`sql
+CREATE TABLE customer_profiles (
+    id          SERIAL PRIMARY KEY,
+    customer_id INTEGER UNIQUE NOT NULL,  -- UNIQUE = enforces 1:1
+    bio         TEXT,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+\`\`\`
+
+### 1:N — Most Common Relationship
+
+\`\`\`sql
+CREATE TABLE orders (
+    id          SERIAL PRIMARY KEY,
+    customer_id INTEGER NOT NULL,
+    order_date  DATE NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- All orders for one customer
+SELECT c.name, o.id, o.total_amount
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+WHERE c.id = 1;
+\`\`\`
+
+### N:M — Junction Table
+
+\`\`\`sql
+-- order_items connects orders ↔ products
+CREATE TABLE order_items (
+    id         SERIAL PRIMARY KEY,
+    order_id   INTEGER NOT NULL REFERENCES orders(id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    quantity   INTEGER NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL
+);
+
+-- All products in order 1 (N:M → 2 JOINs)
+SELECT p.name, oi.quantity, oi.unit_price
+FROM order_items oi
+JOIN products p ON oi.product_id = p.id
+WHERE oi.order_id = 1;
+\`\`\`
+
+### Self-Referencing
+
+\`\`\`sql
+CREATE TABLE categories (
+    id        SERIAL PRIMARY KEY,
+    name      VARCHAR(100) NOT NULL,
+    parent_id INTEGER REFERENCES categories(id)
+);
+
+-- Query subcategories (Self JOIN)
+SELECT c.name AS category, p.name AS parent
+FROM categories c
+LEFT JOIN categories p ON c.parent_id = p.id;
+\`\`\`
+
+---
+
+## E-Commerce ERD (This Platform)
+
+\`\`\`
+customers ──1:1── customer_profiles
+    │ 1:N              │ 1:N
+    ▼                  ▼
+  orders            reviews ◄──1:N── products
+    │ 1:N                              │ N:1
+    ▼                                  ▼
+ order_items ────N:M──── products   categories
+                                    ▲ self-ref
+                                    └───┘
+\`\`\`
+
+### Relationship Summary
+
+| Relationship | Type | FK Location | Description |
+|-------------|------|-------------|-------------|
+| customers ↔ customer_profiles | 1:1 | customer_profiles.customer_id (UNIQUE) | Customer profile |
+| customers → orders | 1:N | orders.customer_id | One customer, many orders |
+| customers → reviews | 1:N | reviews.customer_id | One customer, many reviews |
+| orders → order_items | 1:N | order_items.order_id | One order, many items |
+| products ↔ orders | N:M | order_items (junction table) | Product-order many-to-many |
+| products → reviews | 1:N | reviews.product_id | One product, many reviews |
+| categories → products | 1:N | products.category_id | Products per category |
+| categories → categories | Self | categories.parent_id | Category hierarchy |
+
+---
+
+## Crow's Foot Notation
+
+\`\`\`
+──||──  : Exactly 1 (mandatory)     ──|○──  : 0 or 1
+──<──   : Many                       ──○<──  : 0 or more
+\`\`\`
+
+---
+
+## PostgreSQL vs MySQL
+
+| Feature | PostgreSQL | MySQL |
+|---------|-----------|-------|
+| Auto-increment PK | \`SERIAL\` / \`GENERATED ALWAYS AS IDENTITY\` | \`AUTO_INCREMENT\` |
+| FK support | All tables | **InnoDB only** |
+| Deferred FK | \`DEFERRABLE INITIALLY DEFERRED\` | Not supported |
+| CASCADE | \`ON DELETE CASCADE / SET NULL / RESTRICT\` | Same |`,
+        },
+      },
+      {
         id: 'select-basics',
         title: { ko: 'SELECT: 데이터 조회', en: 'SELECT: Querying Data' },
         level: 'beginner',
@@ -1682,6 +1967,175 @@ SELECT * FROM reviews WHERE rating = 1;
     level: 'intermediate',
     icon: '🌿',
     sections: [
+      {
+        id: 'data-modeling',
+        title: { ko: '데이터 모델링', en: 'Data Modeling' },
+        level: 'intermediate',
+        content: {
+          ko: `## 데이터 모델링 (Data Modeling)
+
+데이터 모델링은 현실 세계의 데이터를 체계적으로 구조화하여 데이터베이스에 저장하기 위한 설계 과정입니다.
+
+### 모델링 3단계
+
+| 단계 | 설명 | 산출물 |
+|------|------|--------|
+| **개념적 모델링** | 업무 요구사항을 추상적으로 표현 | ERD (엔터티-관계도) |
+| **논리적 모델링** | DBMS에 독립적인 스키마 설계 | 정규화된 테이블 구조 |
+| **물리적 모델링** | 특정 DBMS에 맞게 최적화 | DDL, 인덱스, 파티션 |
+
+### 1. 개념적 모델링 (Conceptual)
+
+비즈니스 요구사항에서 **엔터티(Entity)**, **속성(Attribute)**, **관계(Relationship)**를 도출합니다.
+
+- **엔터티**: 고객, 주문, 상품, 카테고리
+- **속성**: 고객명, 이메일, 주문일시, 가격
+- **관계**: 고객→주문(1:N), 주문→상품(N:M)
+
+### 2. 논리적 모델링 — 정규화
+
+| 정규형 | 규칙 | 예시 |
+|--------|------|------|
+| **1NF** | 모든 속성이 원자값 | 전화번호 컬럼에 여러 값 X |
+| **2NF** | 부분 함수적 종속 제거 | 복합키 일부에만 종속되는 컬럼 분리 |
+| **3NF** | 이행적 종속 제거 | A→B→C에서 A→C 종속 분리 |
+| **BCNF** | 모든 결정자가 후보키 | 더 엄격한 3NF |
+
+\\\`\\\`\\\`sql
+-- 비정규화 (1NF 위반)
+CREATE TABLE orders_bad (
+  id INT PRIMARY KEY,
+  items VARCHAR(500)  -- '상품A, 상품B' ← 원자값 아님
+);
+
+-- 정규화된 구조 (3NF)
+CREATE TABLE orders (
+  id INT PRIMARY KEY,
+  customer_id INT REFERENCES customers(id)
+);
+CREATE TABLE order_items (
+  order_id INT REFERENCES orders(id),
+  product_id INT REFERENCES products(id),
+  quantity INT
+);
+\\\`\\\`\\\`
+
+### 3. 물리적 모델링
+
+\\\`\\\`\\\`sql
+-- PostgreSQL 물리적 모델
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
+  order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(20) CHECK (status IN ('pending','shipped','delivered')),
+  total_amount DECIMAL(12,2)
+);
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+CREATE INDEX idx_orders_date ON orders(order_date);
+\\\`\\\`\\\`
+
+### 반정규화 (Denormalization)
+
+성능을 위해 **의도적으로 정규화를 완화**하는 기법입니다.
+
+| 기법 | 설명 | 트레이드오프 |
+|------|------|-------------|
+| **중복 컬럼** | FK 대신 자주 조회되는 값 복사 | JOIN↓, 일관성 위험↑ |
+| **파생 컬럼** | 계산 결과를 미리 저장 | 집계 속도↑, 갱신 비용↑ |
+| **테이블 병합** | 1:1 테이블을 하나로 합침 | JOIN 제거, NULL 증가 |
+
+### PostgreSQL vs MySQL
+
+| 항목 | PostgreSQL | MySQL |
+|------|-----------|-------|
+| 스키마 | 멀티 스키마 지원 | 스키마 = 데이터베이스 |
+| CHECK 제약 | 완전 지원 | 8.0.16+ 지원 |
+| 도메인 타입 | CREATE DOMAIN 지원 | 미지원 |
+| 테이블 상속 | INHERITS 지원 | 미지원 |`,
+          en: `## Data Modeling
+
+Data modeling is the process of systematically structuring real-world data for storage in a database.
+
+### 3 Stages of Modeling
+
+| Stage | Description | Output |
+|-------|-------------|--------|
+| **Conceptual** | Abstract business requirements | ERD |
+| **Logical** | DBMS-independent schema design | Normalized tables |
+| **Physical** | Optimize for specific DBMS | DDL, indexes, partitions |
+
+### 1. Conceptual Modeling
+
+Derive **Entities**, **Attributes**, and **Relationships** from requirements.
+
+- **Entities**: Customer, Order, Product, Category
+- **Attributes**: name, email, order_date, price
+- **Relationships**: Customer→Order (1:N), Order→Product (N:M)
+
+### 2. Logical Modeling — Normalization
+
+| Form | Rule | Example |
+|------|------|---------|
+| **1NF** | All attributes are atomic | No multi-valued columns |
+| **2NF** | Remove partial dependencies | Separate columns dependent on part of composite key |
+| **3NF** | Remove transitive dependencies | If A→B→C, separate A→C |
+| **BCNF** | Every determinant is a candidate key | Stricter 3NF |
+
+\\\`\\\`\\\`sql
+-- Denormalized (violates 1NF)
+CREATE TABLE orders_bad (
+  id INT PRIMARY KEY,
+  items VARCHAR(500)  -- 'Product A, Product B' ← not atomic
+);
+
+-- Normalized (3NF)
+CREATE TABLE orders (
+  id INT PRIMARY KEY,
+  customer_id INT REFERENCES customers(id)
+);
+CREATE TABLE order_items (
+  order_id INT REFERENCES orders(id),
+  product_id INT REFERENCES products(id),
+  quantity INT
+);
+\\\`\\\`\\\`
+
+### 3. Physical Modeling
+
+\\\`\\\`\\\`sql
+-- PostgreSQL physical model
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
+  order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(20) CHECK (status IN ('pending','shipped','delivered')),
+  total_amount DECIMAL(12,2)
+);
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+CREATE INDEX idx_orders_date ON orders(order_date);
+\\\`\\\`\\\`
+
+### Denormalization
+
+Intentionally relaxing normalization for **performance**.
+
+| Technique | Description | Trade-off |
+|-----------|-------------|-----------|
+| **Redundant columns** | Copy frequently queried values | Fewer JOINs, consistency risk |
+| **Derived columns** | Pre-store computed results | Faster reads, update cost |
+| **Table merging** | Combine 1:1 tables | No JOIN, more NULLs |
+
+### PostgreSQL vs MySQL
+
+| Feature | PostgreSQL | MySQL |
+|---------|-----------|-------|
+| Schemas | Multi-schema support | Schema = Database |
+| CHECK constraint | Fully supported | Since 8.0.16+ |
+| Domain types | CREATE DOMAIN | Not supported |
+| Inheritance | INHERITS supported | Not supported |`,
+        },
+      },
       {
         id: 'joins',
         title: { ko: 'JOIN: 테이블 결합', en: 'JOIN: Combining Tables' },
@@ -4826,6 +5280,906 @@ WHERE name IN ('shared_buffers', 'work_mem',
 SELECT current_database(), current_user, version(),
   inet_server_addr(), inet_server_port();
 \`\`\``,
+        },
+      },
+      {
+        id: 'data-mart',
+        title: { ko: '데이터 마트', en: 'Data Mart' },
+        level: 'database',
+        content: {
+          ko: `## 데이터 마트 (Data Mart)
+
+데이터 마트는 **특정 부서나 업무 영역**에 최적화된 소규모 데이터 저장소입니다. 데이터 웨어하우스의 부분 집합으로, 분석 목적에 맞게 가공된 데이터를 제공합니다.
+
+### 데이터 마트 vs 데이터 웨어하우스
+
+| 항목 | 데이터 마트 | 데이터 웨어하우스 |
+|------|-----------|-----------------|
+| **범위** | 단일 부서/주제 | 전사 통합 |
+| **크기** | 수 GB ~ 수백 GB | 수 TB ~ 수 PB |
+| **설계 시간** | 수 주 | 수 개월 |
+| **데이터 원천** | DW 또는 운영 DB | 다양한 원천 시스템 |
+| **사용자** | 부서 분석가 | 전사 분석 팀 |
+
+### 마트 유형
+
+| 유형 | 설명 |
+|------|------|
+| **종속형 (Dependent)** | DW에서 데이터를 추출하여 구성 |
+| **독립형 (Independent)** | 운영 시스템에서 직접 ETL로 구성 |
+| **하이브리드 (Hybrid)** | DW + 운영 시스템 혼합 |
+
+### 스타 스키마 (Star Schema)
+
+마트에서 가장 많이 사용하는 모델링 패턴입니다.
+
+\\\`\\\`\\\`sql
+-- 팩트 테이블 (Fact Table) — 측정값
+CREATE TABLE fact_sales (
+  sale_id SERIAL PRIMARY KEY,
+  date_key INT REFERENCES dim_date(date_key),
+  product_key INT REFERENCES dim_product(product_key),
+  customer_key INT REFERENCES dim_customer(customer_key),
+  quantity INT,
+  amount DECIMAL(12,2)
+);
+
+-- 디멘션 테이블 (Dimension Table) — 분석 축
+CREATE TABLE dim_date (
+  date_key INT PRIMARY KEY,
+  full_date DATE,
+  year INT, quarter INT, month INT, day INT,
+  day_of_week VARCHAR(10),
+  is_holiday BOOLEAN
+);
+
+CREATE TABLE dim_product (
+  product_key INT PRIMARY KEY,
+  product_name VARCHAR(200),
+  category VARCHAR(50),
+  brand VARCHAR(100)
+);
+\\\`\\\`\\\`
+
+### 스노우플레이크 스키마 (Snowflake Schema)
+
+디멘션 테이블을 추가로 **정규화**한 형태입니다.
+
+\\\`\\\`\\\`sql
+-- 스타: dim_product에 category 직접 포함
+-- 스노우플레이크: category를 별도 테이블로 분리
+CREATE TABLE dim_category (
+  category_key INT PRIMARY KEY,
+  category_name VARCHAR(50),
+  department VARCHAR(50)
+);
+CREATE TABLE dim_product (
+  product_key INT PRIMARY KEY,
+  product_name VARCHAR(200),
+  category_key INT REFERENCES dim_category(category_key)
+);
+\\\`\\\`\\\`
+
+### 마트 구축 예시 — 월별 매출 마트
+
+\\\`\\\`\\\`sql
+-- 운영 DB에서 마트 테이블로 집계
+CREATE TABLE mart_monthly_sales AS
+SELECT
+  DATE_TRUNC('month', o.order_date) AS sale_month,
+  c.country,
+  cat.name AS category,
+  COUNT(DISTINCT o.id) AS order_count,
+  SUM(oi.quantity) AS total_quantity,
+  SUM(oi.quantity * oi.unit_price) AS total_revenue
+FROM orders o
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+JOIN categories cat ON p.category_id = cat.id
+JOIN customers c ON o.customer_id = c.id
+WHERE o.status = 'delivered'
+GROUP BY 1, 2, 3;
+
+-- 인덱스 추가
+CREATE INDEX idx_mart_month ON mart_monthly_sales(sale_month);
+CREATE INDEX idx_mart_country ON mart_monthly_sales(country);
+\\\`\\\`\\\`
+
+### PostgreSQL vs MySQL
+
+| 항목 | PostgreSQL | MySQL |
+|------|-----------|-------|
+| Materialized View | \\\`CREATE MATERIALIZED VIEW\\\` 지원 | 미지원 (테이블로 대체) |
+| REFRESH | \\\`REFRESH MATERIALIZED VIEW CONCURRENTLY\\\` | 수동 TRUNCATE + INSERT |
+| 파티셔닝 | 선언적 파티셔닝 | RANGE/LIST/HASH 파티셔닝 |`,
+          en: `## Data Mart
+
+A data mart is a small-scale data store optimized for a **specific department or business area**. It is a subset of a data warehouse, providing curated data for analytical purposes.
+
+### Data Mart vs Data Warehouse
+
+| Aspect | Data Mart | Data Warehouse |
+|--------|-----------|----------------|
+| **Scope** | Single dept/subject | Enterprise-wide |
+| **Size** | GBs to hundreds of GBs | TBs to PBs |
+| **Build time** | Weeks | Months |
+| **Source** | DW or operational DB | Multiple source systems |
+| **Users** | Dept analysts | Enterprise analytics team |
+
+### Mart Types
+
+| Type | Description |
+|------|-------------|
+| **Dependent** | Built from DW data |
+| **Independent** | ETL directly from operational systems |
+| **Hybrid** | Mix of DW + operational sources |
+
+### Star Schema
+
+The most common modeling pattern for data marts.
+
+\\\`\\\`\\\`sql
+-- Fact Table — measurements
+CREATE TABLE fact_sales (
+  sale_id SERIAL PRIMARY KEY,
+  date_key INT REFERENCES dim_date(date_key),
+  product_key INT REFERENCES dim_product(product_key),
+  customer_key INT REFERENCES dim_customer(customer_key),
+  quantity INT,
+  amount DECIMAL(12,2)
+);
+
+-- Dimension Table — analysis axes
+CREATE TABLE dim_date (
+  date_key INT PRIMARY KEY,
+  full_date DATE,
+  year INT, quarter INT, month INT, day INT,
+  day_of_week VARCHAR(10),
+  is_holiday BOOLEAN
+);
+
+CREATE TABLE dim_product (
+  product_key INT PRIMARY KEY,
+  product_name VARCHAR(200),
+  category VARCHAR(50),
+  brand VARCHAR(100)
+);
+\\\`\\\`\\\`
+
+### Snowflake Schema
+
+A **normalized** form of star schema dimensions.
+
+\\\`\\\`\\\`sql
+-- Star: category directly in dim_product
+-- Snowflake: category as separate table
+CREATE TABLE dim_category (
+  category_key INT PRIMARY KEY,
+  category_name VARCHAR(50),
+  department VARCHAR(50)
+);
+CREATE TABLE dim_product (
+  product_key INT PRIMARY KEY,
+  product_name VARCHAR(200),
+  category_key INT REFERENCES dim_category(category_key)
+);
+\\\`\\\`\\\`
+
+### Mart Build Example — Monthly Sales
+
+\\\`\\\`\\\`sql
+CREATE TABLE mart_monthly_sales AS
+SELECT
+  DATE_TRUNC('month', o.order_date) AS sale_month,
+  c.country,
+  cat.name AS category,
+  COUNT(DISTINCT o.id) AS order_count,
+  SUM(oi.quantity) AS total_quantity,
+  SUM(oi.quantity * oi.unit_price) AS total_revenue
+FROM orders o
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+JOIN categories cat ON p.category_id = cat.id
+JOIN customers c ON o.customer_id = c.id
+WHERE o.status = 'delivered'
+GROUP BY 1, 2, 3;
+
+CREATE INDEX idx_mart_month ON mart_monthly_sales(sale_month);
+CREATE INDEX idx_mart_country ON mart_monthly_sales(country);
+\\\`\\\`\\\`
+
+### PostgreSQL vs MySQL
+
+| Feature | PostgreSQL | MySQL |
+|---------|-----------|-------|
+| Materialized View | \\\`CREATE MATERIALIZED VIEW\\\` | Not supported (use tables) |
+| REFRESH | \\\`REFRESH MATERIALIZED VIEW CONCURRENTLY\\\` | Manual TRUNCATE + INSERT |
+| Partitioning | Declarative partitioning | RANGE/LIST/HASH partitioning |`,
+        },
+      },
+      {
+        id: 'data-warehouse',
+        title: { ko: '데이터 웨어하우스', en: 'Data Warehouse' },
+        level: 'database',
+        content: {
+          ko: `## 데이터 웨어하우스 (Data Warehouse)
+
+데이터 웨어하우스(DW)는 **의사결정 지원**을 위해 다양한 원천 시스템의 데이터를 통합·저장하는 중앙 저장소입니다.
+
+### DW의 4가지 특성 (Bill Inmon)
+
+| 특성 | 설명 |
+|------|------|
+| **주제 지향적 (Subject-Oriented)** | 업무 주제(매출, 고객 등) 중심으로 구성 |
+| **통합적 (Integrated)** | 여러 원천의 데이터를 일관된 형식으로 통합 |
+| **시간 가변적 (Time-Variant)** | 시간에 따른 데이터 변화 이력 보존 |
+| **비휘발성 (Non-Volatile)** | 적재 후 변경/삭제 없이 읽기 전용 |
+
+### DW 아키텍처
+
+\\\`\\\`\\\`
+원천 시스템        ETL/ELT        DW           마트        사용자
+┌─────────┐    ┌─────────┐   ┌──────┐    ┌──────┐    ┌──────┐
+│ 운영 DB  │───→│ Extract │──→│      │───→│ 매출  │───→│ BI   │
+│ ERP     │───→│ Transform│──→│  DW  │───→│ 마케팅│───→│ 분석  │
+│ CRM     │───→│ Load    │──→│      │───→│ 재무  │───→│ 리포트│
+│ 외부 API │───→│         │──→│      │    └──────┘    └──────┘
+└─────────┘    └─────────┘   └──────┘
+\\\`\\\`\\\`
+
+### ETL vs ELT
+
+| 항목 | ETL | ELT |
+|------|-----|-----|
+| **순서** | Extract → Transform → Load | Extract → Load → Transform |
+| **변환 위치** | ETL 서버 (중간 단계) | DW 내부 (타겟 DB) |
+| **장점** | 깨끗한 데이터만 적재 | DW 엔진의 처리 능력 활용 |
+| **적합 환경** | 전통적 온프레미스 | 클라우드 DW (BigQuery, Redshift) |
+
+### ETL 예시 — PostgreSQL
+
+\\\`\\\`\\\`sql
+-- 1. Extract: 원천 테이블에서 신규 데이터 추출
+CREATE TEMP TABLE stg_orders AS
+SELECT * FROM dblink('host=source_db', '
+  SELECT id, customer_id, order_date, total_amount
+  FROM orders WHERE order_date >= CURRENT_DATE - INTERVAL ''1 day''
+') AS t(id INT, customer_id INT, order_date TIMESTAMP, total_amount DECIMAL);
+
+-- 2. Transform: 데이터 정제 및 변환
+CREATE TEMP TABLE tfm_orders AS
+SELECT
+  id,
+  customer_id,
+  order_date,
+  DATE_TRUNC('month', order_date) AS order_month,
+  total_amount,
+  CASE WHEN total_amount >= 1000000 THEN 'high'
+       WHEN total_amount >= 100000 THEN 'medium'
+       ELSE 'low' END AS amount_tier
+FROM stg_orders
+WHERE total_amount > 0;
+
+-- 3. Load: DW 팩트 테이블에 적재
+INSERT INTO dw_fact_orders
+SELECT * FROM tfm_orders
+ON CONFLICT (id) DO NOTHING;
+\\\`\\\`\\\`
+
+### SCD (Slowly Changing Dimension)
+
+디멘션 데이터의 변경 이력을 관리하는 방법입니다.
+
+| 유형 | 설명 | 예시 |
+|------|------|------|
+| **SCD Type 1** | 기존 값을 덮어씀 | 고객 주소 최신값만 유지 |
+| **SCD Type 2** | 이력 행 추가 (유효기간) | 고객 주소 변경 이력 전체 보존 |
+| **SCD Type 3** | 이전/현재 컬럼 분리 | current_address + previous_address |
+
+\\\`\\\`\\\`sql
+-- SCD Type 2 예시
+CREATE TABLE dim_customer (
+  customer_key SERIAL PRIMARY KEY,
+  customer_id INT,          -- 원천 시스템 ID
+  name VARCHAR(100),
+  city VARCHAR(50),
+  valid_from DATE NOT NULL,
+  valid_to DATE DEFAULT '9999-12-31',
+  is_current BOOLEAN DEFAULT TRUE
+);
+
+-- 주소 변경 시: 기존 행 만료 + 새 행 삽입
+UPDATE dim_customer SET valid_to = CURRENT_DATE, is_current = FALSE
+WHERE customer_id = 1 AND is_current = TRUE;
+
+INSERT INTO dim_customer (customer_id, name, city, valid_from)
+VALUES (1, 'Kim Cheolsu', 'Busan', CURRENT_DATE);
+\\\`\\\`\\\`
+
+### 클라우드 DW 서비스
+
+| 클라우드 | 서비스 | 특징 |
+|---------|--------|------|
+| AWS | Redshift | 컬럼 기반, Spectrum으로 S3 직접 쿼리 |
+| GCP | BigQuery | 서버리스, 표준 SQL, 슬롯 기반 과금 |
+| Azure | Synapse | 전용/서버리스 SQL 풀 |`,
+          en: `## Data Warehouse (DW)
+
+A data warehouse is a central repository that integrates data from multiple source systems for **decision support**.
+
+### 4 Characteristics (Bill Inmon)
+
+| Property | Description |
+|----------|-------------|
+| **Subject-Oriented** | Organized by business subjects (sales, customers) |
+| **Integrated** | Consistent format across diverse sources |
+| **Time-Variant** | Preserves historical data changes |
+| **Non-Volatile** | Read-only after loading |
+
+### DW Architecture
+
+\\\`\\\`\\\`
+Sources            ETL/ELT        DW           Marts       Users
+┌─────────┐    ┌─────────┐   ┌──────┐    ┌──────┐    ┌──────┐
+│ OLTP DB  │───→│ Extract │──→│      │───→│ Sales │───→│ BI   │
+│ ERP     │───→│Transform│──→│  DW  │───→│Market │───→│Report│
+│ CRM     │───→│ Load    │──→│      │───→│Finance│───→│Dashbd│
+│ APIs    │───→│         │──→│      │    └──────┘    └──────┘
+└─────────┘    └─────────┘   └──────┘
+\\\`\\\`\\\`
+
+### ETL vs ELT
+
+| Aspect | ETL | ELT |
+|--------|-----|-----|
+| **Order** | Extract → Transform → Load | Extract → Load → Transform |
+| **Transform location** | ETL server (middle tier) | Inside DW (target DB) |
+| **Pros** | Only clean data loaded | Leverage DW engine power |
+| **Best for** | Traditional on-premise | Cloud DW (BigQuery, Redshift) |
+
+### ETL Example — PostgreSQL
+
+\\\`\\\`\\\`sql
+-- 1. Extract: pull new data from source
+CREATE TEMP TABLE stg_orders AS
+SELECT * FROM dblink('host=source_db', '
+  SELECT id, customer_id, order_date, total_amount
+  FROM orders WHERE order_date >= CURRENT_DATE - INTERVAL ''1 day''
+') AS t(id INT, customer_id INT, order_date TIMESTAMP, total_amount DECIMAL);
+
+-- 2. Transform: cleanse and enrich
+CREATE TEMP TABLE tfm_orders AS
+SELECT
+  id, customer_id, order_date,
+  DATE_TRUNC('month', order_date) AS order_month,
+  total_amount,
+  CASE WHEN total_amount >= 1000000 THEN 'high'
+       WHEN total_amount >= 100000 THEN 'medium'
+       ELSE 'low' END AS amount_tier
+FROM stg_orders WHERE total_amount > 0;
+
+-- 3. Load: insert into DW fact table
+INSERT INTO dw_fact_orders
+SELECT * FROM tfm_orders
+ON CONFLICT (id) DO NOTHING;
+\\\`\\\`\\\`
+
+### SCD (Slowly Changing Dimension)
+
+Methods for managing historical changes in dimension data.
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **SCD Type 1** | Overwrite old value | Keep only latest customer address |
+| **SCD Type 2** | Add history row (validity period) | Full address change history |
+| **SCD Type 3** | Separate current/previous columns | current_address + previous_address |
+
+\\\`\\\`\\\`sql
+-- SCD Type 2 example
+CREATE TABLE dim_customer (
+  customer_key SERIAL PRIMARY KEY,
+  customer_id INT,
+  name VARCHAR(100),
+  city VARCHAR(50),
+  valid_from DATE NOT NULL,
+  valid_to DATE DEFAULT '9999-12-31',
+  is_current BOOLEAN DEFAULT TRUE
+);
+
+-- On address change: expire old row + insert new
+UPDATE dim_customer SET valid_to = CURRENT_DATE, is_current = FALSE
+WHERE customer_id = 1 AND is_current = TRUE;
+
+INSERT INTO dim_customer (customer_id, name, city, valid_from)
+VALUES (1, 'Kim Cheolsu', 'Busan', CURRENT_DATE);
+\\\`\\\`\\\`
+
+### Cloud DW Services
+
+| Cloud | Service | Features |
+|-------|---------|----------|
+| AWS | Redshift | Columnar, Spectrum for S3 queries |
+| GCP | BigQuery | Serverless, standard SQL, slot-based pricing |
+| Azure | Synapse | Dedicated/serverless SQL pools |`,
+        },
+      },
+      {
+        id: 'data-migration',
+        title: { ko: '데이터 이관', en: 'Data Migration' },
+        level: 'database',
+        content: {
+          ko: `## 데이터 이관 (Data Migration)
+
+데이터 이관은 하나의 시스템에서 다른 시스템으로 **데이터를 옮기는 과정**입니다. DB 업그레이드, 클라우드 전환, 시스템 통합 시 필수적입니다.
+
+### 이관 유형
+
+| 유형 | 설명 | 예시 |
+|------|------|------|
+| **동종 이관** | 같은 DBMS 간 | PostgreSQL 14 → 17 |
+| **이종 이관** | 다른 DBMS 간 | Oracle → PostgreSQL |
+| **클라우드 이관** | 온프레미스 → 클라우드 | MySQL → Amazon RDS |
+| **스토리지 이관** | 저장소 변경 | HDD → SSD, 로컬 → S3 |
+
+### 이관 전략
+
+| 전략 | 설명 | 다운타임 |
+|------|------|---------|
+| **빅뱅 (Big Bang)** | 한 번에 전체 이관 | 길다 |
+| **점진적 (Trickle)** | 단계별로 나눠 이관 | 짧다 |
+| **병행 운영 (Parallel)** | 양쪽 시스템 동시 운영 | 없음 |
+| **블루-그린** | 새 환경 준비 후 전환 | 매우 짧다 |
+
+### PostgreSQL 이관 도구
+
+\\\`\\\`\\\`bash
+# pg_dump — 논리적 백업
+pg_dump -h source_host -U postgres mydb > backup.sql
+pg_dump -Fc mydb > backup.custom          # 커스텀 포맷 (압축)
+pg_dump -Fd -j 4 mydb -f backup_dir/      # 디렉토리 포맷 (병렬)
+
+# pg_restore — 복원
+pg_restore -h target_host -U postgres -d mydb backup.custom
+pg_restore -j 4 -d mydb backup_dir/       # 병렬 복원
+
+# pg_upgrade — 메이저 버전 업그레이드
+pg_upgrade --old-datadir /var/lib/pgsql/14/data \\
+           --new-datadir /var/lib/pgsql/17/data \\
+           --old-bindir /usr/pgsql-14/bin \\
+           --new-bindir /usr/pgsql-17/bin
+\\\`\\\`\\\`
+
+### MySQL 이관 도구
+
+\\\`\\\`\\\`bash
+# mysqldump — 논리적 백업
+mysqldump -h source_host -u root -p mydb > backup.sql
+mysqldump --single-transaction mydb > backup.sql  # InnoDB 일관성 보장
+
+# mysqlpump — 병렬 덤프 (MySQL 5.7+)
+mysqlpump --default-parallelism=4 mydb > backup.sql
+
+# mysql_upgrade — 업그레이드 후 시스템 테이블 갱신
+mysql_upgrade -u root -p
+
+# MySQL Shell — 유틸리티 (MySQL 8.0+)
+mysqlsh -- util dump-instance /backup/full
+mysqlsh -- util load-dump /backup/full
+\\\`\\\`\\\`
+
+### 이종 DB 이관 (Cross-Platform)
+
+\\\`\\\`\\\`sql
+-- pgloader: MySQL → PostgreSQL 이관
+-- pgloader mysql://user:pass@mysql_host/mydb
+--          postgresql://user:pass@pg_host/mydb
+
+-- AWS DMS (Database Migration Service) 설정 예시
+-- 원천: MySQL (Source Endpoint)
+-- 타겟: PostgreSQL (Target Endpoint)
+-- 복제 유형: Full Load + CDC (Change Data Capture)
+\\\`\\\`\\\`
+
+### 이관 체크리스트
+
+| 단계 | 확인 사항 |
+|------|----------|
+| **계획** | 데이터 양, 다운타임 허용 시간, 롤백 계획 |
+| **스키마 변환** | 데이터 타입 호환성, 제약조건, 시퀀스/AUTO_INCREMENT |
+| **데이터 검증** | 행 수 비교, 체크섬, 샘플 데이터 검증 |
+| **성능 테스트** | 주요 쿼리 실행 계획 비교, 인덱스 유효성 |
+| **전환** | DNS 전환, 커넥션 풀 재설정, 애플리케이션 배포 |
+
+\\\`\\\`\\\`sql
+-- 이관 후 데이터 검증 예시
+-- 행 수 비교
+SELECT 'customers' AS tbl, COUNT(*) FROM customers
+UNION ALL
+SELECT 'orders', COUNT(*) FROM orders
+UNION ALL
+SELECT 'products', COUNT(*) FROM products;
+
+-- 체크섬 비교 (PostgreSQL)
+SELECT md5(string_agg(t::text, ''))
+FROM (SELECT * FROM customers ORDER BY id) t;
+\\\`\\\`\\\``,
+          en: `## Data Migration
+
+Data migration is the process of **moving data** from one system to another. Essential for DB upgrades, cloud transitions, and system consolidation.
+
+### Migration Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Homogeneous** | Same DBMS | PostgreSQL 14 → 17 |
+| **Heterogeneous** | Different DBMS | Oracle → PostgreSQL |
+| **Cloud** | On-premise → Cloud | MySQL → Amazon RDS |
+| **Storage** | Storage change | HDD → SSD, Local → S3 |
+
+### Migration Strategies
+
+| Strategy | Description | Downtime |
+|----------|-------------|----------|
+| **Big Bang** | Migrate everything at once | Long |
+| **Trickle** | Migrate in phases | Short |
+| **Parallel Run** | Both systems run simultaneously | None |
+| **Blue-Green** | Prepare new env, then switch | Very short |
+
+### PostgreSQL Migration Tools
+
+\\\`\\\`\\\`bash
+# pg_dump — logical backup
+pg_dump -h source_host -U postgres mydb > backup.sql
+pg_dump -Fc mydb > backup.custom            # custom format (compressed)
+pg_dump -Fd -j 4 mydb -f backup_dir/        # directory format (parallel)
+
+# pg_restore — restore
+pg_restore -h target_host -U postgres -d mydb backup.custom
+pg_restore -j 4 -d mydb backup_dir/         # parallel restore
+
+# pg_upgrade — major version upgrade
+pg_upgrade --old-datadir /var/lib/pgsql/14/data \\
+           --new-datadir /var/lib/pgsql/17/data \\
+           --old-bindir /usr/pgsql-14/bin \\
+           --new-bindir /usr/pgsql-17/bin
+\\\`\\\`\\\`
+
+### MySQL Migration Tools
+
+\\\`\\\`\\\`bash
+# mysqldump — logical backup
+mysqldump -h source_host -u root -p mydb > backup.sql
+mysqldump --single-transaction mydb > backup.sql  # InnoDB consistency
+
+# mysqlpump — parallel dump (MySQL 5.7+)
+mysqlpump --default-parallelism=4 mydb > backup.sql
+
+# MySQL Shell utilities (8.0+)
+mysqlsh -- util dump-instance /backup/full
+mysqlsh -- util load-dump /backup/full
+\\\`\\\`\\\`
+
+### Cross-Platform Migration
+
+\\\`\\\`\\\`sql
+-- pgloader: MySQL → PostgreSQL
+-- pgloader mysql://user:pass@mysql_host/mydb
+--          postgresql://user:pass@pg_host/mydb
+
+-- AWS DMS (Database Migration Service)
+-- Source: MySQL endpoint
+-- Target: PostgreSQL endpoint
+-- Replication type: Full Load + CDC (Change Data Capture)
+\\\`\\\`\\\`
+
+### Migration Checklist
+
+| Phase | Items |
+|-------|-------|
+| **Planning** | Data volume, downtime window, rollback plan |
+| **Schema conversion** | Data type compatibility, constraints, sequences |
+| **Data validation** | Row count comparison, checksums, sample verification |
+| **Performance test** | Execution plan comparison, index effectiveness |
+| **Cutover** | DNS switch, connection pool reset, app deployment |
+
+\\\`\\\`\\\`sql
+-- Post-migration validation
+SELECT 'customers' AS tbl, COUNT(*) FROM customers
+UNION ALL
+SELECT 'orders', COUNT(*) FROM orders
+UNION ALL
+SELECT 'products', COUNT(*) FROM products;
+
+-- Checksum comparison (PostgreSQL)
+SELECT md5(string_agg(t::text, ''))
+FROM (SELECT * FROM customers ORDER BY id) t;
+\\\`\\\`\\\``,
+        },
+      },
+      {
+        id: 'db-engine-storage',
+        title: { ko: '데이터베이스 엔진과 스토리지', en: 'Database Engine & Storage' },
+        level: 'database',
+        content: {
+          ko: `## 데이터베이스 엔진과 스토리지
+
+데이터베이스 엔진은 **데이터를 저장·검색·수정하는 핵심 소프트웨어**이며, 스토리지 구조는 데이터가 디스크에 저장되는 방식을 결정합니다.
+
+### MySQL 스토리지 엔진
+
+MySQL은 **플러거블 스토리지 엔진** 아키텍처를 채택하여 테이블별로 다른 엔진을 사용할 수 있습니다.
+
+| 엔진 | 트랜잭션 | 잠금 수준 | 용도 |
+|------|---------|----------|------|
+| **InnoDB** | O | 행 잠금 | 기본 엔진, OLTP |
+| **MyISAM** | X | 테이블 잠금 | 읽기 집중 (레거시) |
+| **Memory** | X | 테이블 잠금 | 임시 데이터, 캐시 |
+| **Archive** | X | 행 잠금 | 로그/감사 데이터 |
+| **NDB (Cluster)** | O | 행 잠금 | 분산 클러스터 |
+
+\\\`\\\`\\\`sql
+-- 현재 테이블의 엔진 확인
+SHOW TABLE STATUS FROM mydb;
+
+-- 엔진 변경
+ALTER TABLE orders ENGINE = InnoDB;
+
+-- 사용 가능한 엔진 목록
+SHOW ENGINES;
+\\\`\\\`\\\`
+
+#### InnoDB 내부 구조
+
+\\\`\\\`\\\`
+┌─────────────────────────────────┐
+│         InnoDB Buffer Pool      │  ← 메모리 (캐시)
+│  ┌──────────┐ ┌──────────────┐  │
+│  │ Data Page │ │ Change Buffer│  │
+│  └──────────┘ └──────────────┘  │
+├─────────────────────────────────┤
+│         Redo Log (WAL)          │  ← 장애 복구
+├─────────────────────────────────┤
+│  Tablespace (.ibd 파일)         │  ← 디스크
+│  ┌──────┐ ┌──────┐ ┌────────┐  │
+│  │ Data │ │Index │ │Undo Log│  │
+│  └──────┘ └──────┘ └────────┘  │
+└─────────────────────────────────┘
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- InnoDB 버퍼 풀 상태
+SHOW STATUS LIKE 'Innodb_buffer_pool%';
+
+-- 버퍼 풀 크기 설정 (전체 RAM의 70~80% 권장)
+-- my.cnf: innodb_buffer_pool_size = 4G
+\\\`\\\`\\\`
+
+### PostgreSQL 스토리지 구조
+
+PostgreSQL은 단일 스토리지 엔진을 사용하며 **MVCC(다중 버전 동시성 제어)** 를 기반으로 합니다.
+
+\\\`\\\`\\\`
+┌─────────────────────────────────┐
+│       Shared Buffers            │  ← 메모리 (캐시)
+│  ┌──────────┐ ┌──────────────┐  │
+│  │ Data Page │ │   WAL Buffer │  │
+│  └──────────┘ └──────────────┘  │
+├─────────────────────────────────┤
+│         WAL (Write-Ahead Log)   │  ← 장애 복구
+├─────────────────────────────────┤
+│  Data Directory (PGDATA)        │  ← 디스크
+│  ┌──────┐ ┌──────┐ ┌────────┐  │
+│  │Heap  │ │Index │ │TOAST   │  │
+│  │File  │ │File  │ │(대형값) │  │
+│  └──────┘ └──────┘ └────────┘  │
+└─────────────────────────────────┘
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- 테이블의 물리적 파일 위치
+SELECT pg_relation_filepath('orders');
+
+-- 테이블스페이스 관리
+CREATE TABLESPACE fast_ssd LOCATION '/mnt/ssd/pgdata';
+CREATE TABLE hot_data (...) TABLESPACE fast_ssd;
+
+-- Shared Buffers 설정 확인
+SHOW shared_buffers;      -- 전체 RAM의 25% 권장
+SHOW effective_cache_size; -- OS 캐시 포함 전체 캐시
+SHOW work_mem;            -- 쿼리별 정렬/해시 메모리
+\\\`\\\`\\\`
+
+### 행 기반 vs 컬럼 기반 스토리지
+
+| 항목 | 행 기반 (Row Store) | 컬럼 기반 (Column Store) |
+|------|-------------------|------------------------|
+| **저장 방식** | 행 단위로 저장 | 컬럼 단위로 저장 |
+| **OLTP** | 적합 (단건 CRUD) | 비효율 |
+| **OLAP** | 비효율 (불필요한 컬럼 읽기) | 적합 (필요한 컬럼만 읽기) |
+| **압축** | 보통 | 우수 (같은 타입 데이터 연속) |
+| **예시** | PostgreSQL, MySQL | ClickHouse, Redshift, BigQuery |
+
+### WAL (Write-Ahead Logging)
+
+데이터 변경 전에 **로그를 먼저 기록**하여 장애 복구를 보장합니다.
+
+\\\`\\\`\\\`sql
+-- PostgreSQL WAL 상태
+SELECT pg_current_wal_lsn(), pg_wal_lsn_diff(
+  pg_current_wal_lsn(), '0/0') AS wal_bytes;
+
+-- WAL 아카이브 설정 확인
+SHOW archive_mode;
+SHOW archive_command;
+SHOW wal_level;  -- minimal, replica, logical
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- MySQL Redo Log 상태
+SHOW STATUS LIKE 'Innodb_redo_log%';
+-- Binary Log (복제/복구용)
+SHOW BINARY LOGS;
+SHOW VARIABLES LIKE 'binlog_format';  -- ROW, STATEMENT, MIXED
+\\\`\\\`\\\`
+
+### TOAST (PostgreSQL)
+
+큰 데이터 값을 별도 테이블에 압축·저장하는 PostgreSQL 고유 메커니즘입니다.
+
+\\\`\\\`\\\`sql
+-- TOAST 전략 확인
+SELECT attname, atttypid::regtype,
+  CASE attstorage
+    WHEN 'p' THEN 'plain'
+    WHEN 'e' THEN 'external'
+    WHEN 'm' THEN 'main'
+    WHEN 'x' THEN 'extended'
+  END AS storage
+FROM pg_attribute
+WHERE attrelid = 'reviews'::regclass AND attnum > 0;
+
+-- TOAST 테이블 크기
+SELECT pg_size_pretty(pg_total_relation_size('reviews')) AS total,
+       pg_size_pretty(pg_relation_size('reviews')) AS main,
+       pg_size_pretty(pg_total_relation_size('reviews')
+         - pg_relation_size('reviews')) AS toast_and_index;
+\\\`\\\`\\\``,
+          en: `## Database Engine & Storage
+
+A database engine is the **core software that stores, retrieves, and modifies data**. Storage architecture determines how data is physically stored on disk.
+
+### MySQL Storage Engines
+
+MySQL uses a **pluggable storage engine** architecture — each table can use a different engine.
+
+| Engine | Transactions | Lock Level | Use Case |
+|--------|-------------|------------|----------|
+| **InnoDB** | Yes | Row-level | Default, OLTP |
+| **MyISAM** | No | Table-level | Read-heavy (legacy) |
+| **Memory** | No | Table-level | Temp data, caching |
+| **Archive** | No | Row-level | Log/audit data |
+| **NDB (Cluster)** | Yes | Row-level | Distributed cluster |
+
+\\\`\\\`\\\`sql
+-- Check table engines
+SHOW TABLE STATUS FROM mydb;
+
+-- Change engine
+ALTER TABLE orders ENGINE = InnoDB;
+
+-- List available engines
+SHOW ENGINES;
+\\\`\\\`\\\`
+
+#### InnoDB Internal Structure
+
+\\\`\\\`\\\`
+┌─────────────────────────────────┐
+│         InnoDB Buffer Pool      │  ← Memory (cache)
+│  ┌──────────┐ ┌──────────────┐  │
+│  │ Data Page │ │ Change Buffer│  │
+│  └──────────┘ └──────────────┘  │
+├─────────────────────────────────┤
+│         Redo Log (WAL)          │  ← Crash recovery
+├─────────────────────────────────┤
+│  Tablespace (.ibd files)        │  ← Disk
+│  ┌──────┐ ┌──────┐ ┌────────┐  │
+│  │ Data │ │Index │ │Undo Log│  │
+│  └──────┘ └──────┘ └────────┘  │
+└─────────────────────────────────┘
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- InnoDB buffer pool status
+SHOW STATUS LIKE 'Innodb_buffer_pool%';
+
+-- Buffer pool size (70-80% of total RAM recommended)
+-- my.cnf: innodb_buffer_pool_size = 4G
+\\\`\\\`\\\`
+
+### PostgreSQL Storage Structure
+
+PostgreSQL uses a single storage engine based on **MVCC (Multi-Version Concurrency Control)**.
+
+\\\`\\\`\\\`
+┌─────────────────────────────────┐
+│       Shared Buffers            │  ← Memory (cache)
+│  ┌──────────┐ ┌──────────────┐  │
+│  │ Data Page │ │   WAL Buffer │  │
+│  └──────────┘ └──────────────┘  │
+├─────────────────────────────────┤
+│         WAL (Write-Ahead Log)   │  ← Crash recovery
+├─────────────────────────────────┤
+│  Data Directory (PGDATA)        │  ← Disk
+│  ┌──────┐ ┌──────┐ ┌────────┐  │
+│  │Heap  │ │Index │ │TOAST   │  │
+│  │File  │ │File  │ │(large) │  │
+│  └──────┘ └──────┘ └────────┘  │
+└─────────────────────────────────┘
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- Physical file location of a table
+SELECT pg_relation_filepath('orders');
+
+-- Tablespace management
+CREATE TABLESPACE fast_ssd LOCATION '/mnt/ssd/pgdata';
+CREATE TABLE hot_data (...) TABLESPACE fast_ssd;
+
+-- Memory configuration
+SHOW shared_buffers;        -- 25% of RAM recommended
+SHOW effective_cache_size;  -- Total cache incl. OS
+SHOW work_mem;              -- Per-query sort/hash memory
+\\\`\\\`\\\`
+
+### Row Store vs Column Store
+
+| Aspect | Row Store | Column Store |
+|--------|-----------|-------------|
+| **Storage** | Row by row | Column by column |
+| **OLTP** | Ideal (single-row CRUD) | Inefficient |
+| **OLAP** | Inefficient (reads unused cols) | Ideal (reads only needed cols) |
+| **Compression** | Average | Excellent (same-type data) |
+| **Examples** | PostgreSQL, MySQL | ClickHouse, Redshift, BigQuery |
+
+### WAL (Write-Ahead Logging)
+
+Ensures crash recovery by **writing logs before data changes**.
+
+\\\`\\\`\\\`sql
+-- PostgreSQL WAL status
+SELECT pg_current_wal_lsn(), pg_wal_lsn_diff(
+  pg_current_wal_lsn(), '0/0') AS wal_bytes;
+
+-- WAL archive settings
+SHOW archive_mode;
+SHOW wal_level;  -- minimal, replica, logical
+\\\`\\\`\\\`
+
+\\\`\\\`\\\`sql
+-- MySQL Redo Log status
+SHOW STATUS LIKE 'Innodb_redo_log%';
+-- Binary Log (replication/recovery)
+SHOW BINARY LOGS;
+SHOW VARIABLES LIKE 'binlog_format';  -- ROW, STATEMENT, MIXED
+\\\`\\\`\\\`
+
+### TOAST (PostgreSQL)
+
+PostgreSQL mechanism for compressing and storing **large values** in a separate table.
+
+\\\`\\\`\\\`sql
+-- Check TOAST strategy
+SELECT attname, atttypid::regtype,
+  CASE attstorage
+    WHEN 'p' THEN 'plain'
+    WHEN 'e' THEN 'external'
+    WHEN 'm' THEN 'main'
+    WHEN 'x' THEN 'extended'
+  END AS storage
+FROM pg_attribute
+WHERE attrelid = 'reviews'::regclass AND attnum > 0;
+\\\`\\\`\\\``,
         },
       },
     ],

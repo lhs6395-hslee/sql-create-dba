@@ -110,7 +110,7 @@ export const LEVEL_CONFIGS: LevelConfig[] = [
     },
     icon: 'Flame',
     color: 'blue',
-    problemCount: 16,
+    problemCount: 20,
   },
   {
     id: 'advanced',

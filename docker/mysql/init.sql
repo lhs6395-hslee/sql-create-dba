@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS customer_profiles;
 DROP TABLE IF EXISTS customers;
 
 -- Customers
@@ -17,6 +18,16 @@ CREATE TABLE customers (
   country VARCHAR(50),
   signup_date DATE,
   is_premium BOOLEAN DEFAULT FALSE
+);
+
+-- Customer Profiles (1:1 with customers)
+CREATE TABLE customer_profiles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT UNIQUE NOT NULL,
+  bio TEXT,
+  website VARCHAR(200),
+  phone VARCHAR(30),
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
 
 -- Categories
@@ -150,6 +161,36 @@ INSERT INTO customers (name, email, city, country, signup_date, is_premium) VALU
 ('Emily Chen', 'emily@email.com', 'Vancouver', 'Canada', '2025-01-01', true),
 ('Marco Rossi', 'marco@email.com', 'Milan', 'Italy', '2025-01-15', false),
 ('Anna Kim', 'anna@email.com', 'Seoul', 'South Korea', '2025-02-01', NULL);
+
+-- Customer Profiles (30 of 50 customers have profiles)
+INSERT INTO customer_profiles (customer_id, bio, website, phone) VALUES
+(1, 'Tech enthusiast and early adopter.', 'https://cheolsu.dev', '010-1234-5678'),
+(3, 'Software engineer who loves gadgets.', 'https://jimin.io', '010-3456-7890'),
+(5, 'Fitness lover and outdoor adventurer.', NULL, '010-5678-9012'),
+(7, 'Book collector and coffee addict.', 'https://seojun.blog', '010-7890-1234'),
+(9, 'Professional photographer.', 'https://taeyoung.photo', '010-9012-3456'),
+(11, 'Data scientist and SQL expert.', 'https://dongwoo.data', NULL),
+(14, 'Fashion designer based in Seoul.', 'https://suzy.fashion', '010-1414-1414'),
+(16, 'Freelance developer.', 'https://johnsmith.dev', '1-555-0100'),
+(17, 'Travel blogger exploring Asia.', 'https://emmawilson.travel', '44-7700-900000'),
+(18, 'AI researcher at university.', 'https://yuki.ai', '81-90-1234-5678'),
+(20, 'Wine enthusiast and chef.', 'https://marie.cuisine', '33-6-12-34-56-78'),
+(22, 'Music producer and DJ.', NULL, '010-2222-3333'),
+(25, 'Startup founder in fintech.', 'https://hyunwoo.ventures', '010-2525-2525'),
+(27, 'Marine biologist.', 'https://liambrown.science', '61-400-123-456'),
+(29, 'Full-stack developer.', 'https://dohyun.dev', '010-2929-2929'),
+(31, 'High school teacher.', NULL, '010-3131-3131'),
+(33, 'Yoga instructor.', 'https://hojin.yoga', '010-3333-4444'),
+(34, 'UX designer at tech company.', 'https://sooyoung.ux', '010-3434-3434'),
+(36, 'Entrepreneur and investor.', 'https://alex.biz', '1-555-0200'),
+(38, 'Architect and interior designer.', NULL, '86-138-0000-0000'),
+(39, 'Marketing manager.', 'https://soyoung.marketing', '010-3939-3939'),
+(41, 'Retired professor of literature.', NULL, '010-4141-4141'),
+(43, 'Professional gamer and streamer.', 'https://yujin.gg', '010-4343-4343'),
+(45, 'Veterinarian and animal lover.', 'https://jungkook.vet', '010-4545-4545'),
+(47, 'Graphic designer.', 'https://david.design', '1-555-0300'),
+(48, 'Environmental scientist.', 'https://emily.eco', '1-604-555-0100'),
+(50, 'Student studying computer science.', NULL, '010-5050-5050');
 
 -- Products (100) - same data
 INSERT INTO products (name, category_id, price, stock_quantity) VALUES

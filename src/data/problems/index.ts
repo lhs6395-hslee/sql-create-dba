@@ -34,6 +34,10 @@ import { problem as i013 } from './intermediate/013-delete-subquery';
 import { problem as i014 } from './intermediate/014-create-table';
 import { problem as i015 } from './intermediate/015-drop-table';
 import { problem as i016 } from './intermediate/016-truncate';
+import { problem as i017 } from './intermediate/017-one-to-one-join';
+import { problem as i018 } from './intermediate/018-many-to-many';
+import { problem as i019 } from './intermediate/019-self-referencing';
+import { problem as i020 } from './intermediate/020-multi-table-erd';
 
 // Advanced
 import { problem as a001 } from './advanced/001-row-number';
@@ -84,7 +88,7 @@ const allProblems: Problem[] = [
   // Beginner
   b001, b002, b003, b004, b005, b006, b007, b008, b009, b010, b011, b012, b013, b014, b015,
   // Intermediate
-  i001, i002, i003, i004, i005, i006, i007, i008, i009, i010, i011, i012, i013, i014, i015, i016,
+  i001, i002, i003, i004, i005, i006, i007, i008, i009, i010, i011, i012, i013, i014, i015, i016, i017, i018, i019, i020,
   // Advanced
   a001, a002, a003, a004, a005, a006, a007, a008, a009, a010, a011, a012, a013, a014, a015,
   // Expert
