@@ -1217,15 +1217,779 @@ export function StorageTiersDiagram({ locale }: DiagramProps) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ERD Modeling — Relationship Types
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function ERDModelingDiagram({ locale }: DiagramProps) {
+  const [activeRel, setActiveRel] = useState<number | null>(null);
+
+  const relations = [
+    {
+      type: '1:1',
+      label: { ko: '일대일', en: 'One-to-One' },
+      color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
+      left: 'Customer',
+      right: 'Profile',
+      desc: { ko: '한 고객은 하나의 프로필만 가집니다. FK에 UNIQUE 제약조건으로 보장합니다.', en: 'One customer has exactly one profile. Guaranteed by UNIQUE constraint on FK.' },
+      sql: 'customer_profiles.customer_id UNIQUE → customers.id',
+    },
+    {
+      type: '1:N',
+      label: { ko: '일대다', en: 'One-to-Many' },
+      color: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', header: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
+      left: 'Customer',
+      right: 'Orders',
+      desc: { ko: '한 고객은 여러 주문을 할 수 있습니다. 가장 흔한 관계입니다.', en: 'One customer can have many orders. The most common relationship type.' },
+      sql: 'orders.customer_id → customers.id',
+    },
+    {
+      type: 'N:M',
+      label: { ko: '다대다', en: 'Many-to-Many' },
+      color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+      left: 'Orders',
+      right: 'Products',
+      desc: { ko: '주문과 상품은 다대다 관계입니다. 중간 테이블(order_items)로 해소합니다.', en: 'Orders and products have a many-to-many relationship. Resolved via junction table (order_items).' },
+      sql: 'order_items(order_id, product_id)',
+    },
+    {
+      type: locale === 'ko' ? '자기참조' : 'Self',
+      label: { ko: '자기참조', en: 'Self-Referencing' },
+      color: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', header: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+      left: 'Category',
+      right: 'Category',
+      desc: { ko: '같은 테이블 내에서 부모-자식 관계를 형성합니다. 계층 구조에 사용합니다.', en: 'Forms parent-child relationships within the same table. Used for hierarchies.' },
+      sql: 'categories.parent_id → categories.id',
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-rose-500 text-white text-xs font-bold">
+          ER
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? 'ERD 관계 유형' : 'ERD Relationship Types'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 관계를 클릭하여 상세 정보 확인' : 'Click each relationship for details'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {relations.map((rel, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveRel(activeRel === i ? null : i)}
+            className={`rounded-lg border text-left transition-all ${rel.color.border} ${rel.color.bg} ${
+              activeRel === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className={`${rel.color.header} px-2 py-1.5 rounded-t-[7px] text-center`}>
+              <span className="text-white text-[11px] font-bold">{rel.type}</span>
+            </div>
+            <div className="p-2 text-center">
+              <p className={`text-[10px] font-bold ${rel.color.text}`}>{rel.label[locale]}</p>
+              <div className="mt-1.5 flex items-center justify-center gap-1 text-[9px] font-mono text-muted-foreground">
+                <span className="bg-background/60 px-1 py-0.5 rounded">{rel.left}</span>
+                <span>→</span>
+                <span className="bg-background/60 px-1 py-0.5 rounded">{rel.right}</span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeRel !== null && (
+        <div className={`mt-3 rounded-lg border ${relations[activeRel].color.border} ${relations[activeRel].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed mb-2">{relations[activeRel].desc[locale]}</p>
+          <div className="rounded-md bg-background/60 p-2">
+            <p className="text-[10px] font-mono text-muted-foreground">{relations[activeRel].sql}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? 'Crow\'s Foot 표기법에서 ─ 은 1, ─< 은 N(다수)을 의미합니다. N:M 관계는 반드시 중간 테이블로 해소해야 합니다.'
+            : 'In Crow\'s Foot notation, ─ means 1, ─< means N (many). N:M relationships must be resolved with a junction table.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Data Modeling — 3 Stage Pipeline
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function DataModelingDiagram({ locale }: DiagramProps) {
+  const [activeStage, setActiveStage] = useState<number | null>(null);
+
+  const stages = [
+    {
+      num: '01',
+      name: { ko: '개념적 모델링', en: 'Conceptual' },
+      color: { bg: 'bg-sky-500/10', border: 'border-sky-500/30', header: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400' },
+      output: { ko: 'ERD', en: 'ERD' },
+      items: [
+        { ko: '엔터티 도출', en: 'Identify entities' },
+        { ko: '속성 정의', en: 'Define attributes' },
+        { ko: '관계 설정', en: 'Establish relationships' },
+      ],
+      desc: { ko: '비즈니스 요구사항을 추상적으로 표현합니다. DBMS에 독립적이며 업무 담당자와 소통 가능한 수준입니다.', en: 'Abstract representation of business requirements. DBMS-independent and understandable by business stakeholders.' },
+    },
+    {
+      num: '02',
+      name: { ko: '논리적 모델링', en: 'Logical' },
+      color: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', header: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
+      output: { ko: locale === 'ko' ? '정규화된 스키마' : 'Normalized Schema', en: 'Normalized Schema' },
+      items: [
+        { ko: '정규화 (1NF~BCNF)', en: 'Normalization (1NF~BCNF)' },
+        { ko: 'PK / FK 결정', en: 'Define PK / FK' },
+        { ko: '데이터 타입 논리 정의', en: 'Logical data types' },
+      ],
+      desc: { ko: '개념적 모델을 테이블 구조로 변환합니다. 정규화를 통해 데이터 중복과 이상현상을 방지합니다.', en: 'Transform conceptual model into table structures. Normalization prevents data redundancy and anomalies.' },
+    },
+    {
+      num: '03',
+      name: { ko: '물리적 모델링', en: 'Physical' },
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+      output: { ko: 'DDL + 인덱스', en: 'DDL + Indexes' },
+      items: [
+        { ko: 'DBMS별 데이터 타입', en: 'DBMS-specific types' },
+        { ko: '인덱스 / 파티션', en: 'Indexes / Partitions' },
+        { ko: '반정규화 검토', en: 'Denormalization review' },
+      ],
+      desc: { ko: '특정 DBMS에 맞게 최적화합니다. 성능을 위해 인덱스, 파티셔닝, 반정규화를 적용합니다.', en: 'Optimize for a specific DBMS. Apply indexes, partitioning, and denormalization for performance.' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-emerald-500 text-white text-xs font-bold">
+          DM
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '데이터 모델링 3단계' : '3 Stages of Data Modeling'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 단계를 클릭하여 상세 내용 확인' : 'Click each stage for details'}
+          </p>
+        </div>
+      </div>
+
+      {/* Pipeline flow */}
+      <div className="flex items-center gap-1 mb-4">
+        {stages.map((stage, i) => (
+          <Fragment key={i}>
+            <button
+              onClick={() => setActiveStage(activeStage === i ? null : i)}
+              className={`flex-1 rounded-lg border text-left transition-all ${stage.color.border} ${stage.color.bg} ${
+                activeStage === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+              }`}
+            >
+              <div className={`${stage.color.header} px-2 py-1.5 rounded-t-[7px] flex items-center justify-between`}>
+                <span className="text-white text-[10px] font-bold">{stage.num}</span>
+                <span className="text-white/80 text-[9px]">{stage.output[locale]}</span>
+              </div>
+              <div className="p-2.5">
+                <p className={`text-[11px] font-bold ${stage.color.text}`}>{stage.name[locale]}</p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {stage.items.map((item, j) => (
+                    <li key={j} className="text-[9px] text-muted-foreground flex items-center gap-1">
+                      <span className={`w-1 h-1 rounded-full ${stage.color.header}`} />
+                      {item[locale]}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </button>
+            {i < stages.length - 1 && (
+              <div className="text-muted-foreground text-sm font-bold">→</div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+
+      {activeStage !== null && (
+        <div className={`rounded-lg border ${stages[activeStage].color.border} ${stages[activeStage].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{stages[activeStage].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '실무에서는 물리적 모델링 시 성능을 위해 반정규화를 적용하기도 합니다. 정규화와 반정규화의 균형이 중요합니다.'
+            : 'In practice, denormalization is sometimes applied during physical modeling for performance. Balance between normalization and denormalization is key.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Data Mart — Star Schema
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function DataMartDiagram({ locale }: DiagramProps) {
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+
+  const factTable = {
+    id: 'fact',
+    name: 'fact_sales',
+    label: { ko: '팩트 테이블', en: 'Fact Table' },
+    color: 'bg-rose-500',
+    desc: { ko: '측정값(매출액, 수량 등)을 저장하는 중심 테이블입니다. 디멘션 테이블의 FK를 가집니다.', en: 'Central table storing measurements (revenue, quantity, etc.). Contains FKs to dimension tables.' },
+    cols: ['sale_id PK', 'date_key FK', 'product_key FK', 'customer_key FK', 'quantity', 'amount'],
+  };
+
+  const dims = [
+    {
+      id: 'date',
+      name: 'dim_date',
+      label: { ko: '시간', en: 'Date' },
+      color: 'bg-sky-500',
+      desc: { ko: '연/분기/월/일/요일/공휴일 등 시간 축 분석용 디멘션입니다.', en: 'Dimension for time-based analysis: year, quarter, month, day, weekday, holiday.' },
+      cols: ['date_key PK', 'full_date', 'year', 'quarter', 'month'],
+    },
+    {
+      id: 'product',
+      name: 'dim_product',
+      label: { ko: '상품', en: 'Product' },
+      color: 'bg-violet-500',
+      desc: { ko: '상품명, 카테고리, 브랜드 등 상품 분석 축입니다.', en: 'Product analysis axis: name, category, brand.' },
+      cols: ['product_key PK', 'name', 'category', 'brand'],
+    },
+    {
+      id: 'customer',
+      name: 'dim_customer',
+      label: { ko: '고객', en: 'Customer' },
+      color: 'bg-emerald-500',
+      desc: { ko: '고객명, 지역, 등급 등 고객 분석 축입니다.', en: 'Customer analysis axis: name, region, tier.' },
+      cols: ['customer_key PK', 'name', 'city', 'country', 'tier'],
+    },
+    {
+      id: 'store',
+      name: 'dim_store',
+      label: { ko: '매장', en: 'Store' },
+      color: 'bg-amber-500',
+      desc: { ko: '매장/채널 분석용 디멘션입니다. 오프라인/온라인 구분 등에 활용합니다.', en: 'Dimension for store/channel analysis. Used for offline/online segmentation.' },
+      cols: ['store_key PK', 'name', 'region', 'channel'],
+    },
+  ];
+
+  const active = activeNode === 'fact' ? factTable : dims.find((d) => d.id === activeNode);
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-amber-500 text-white text-[9px] font-bold">
+          ★
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '스타 스키마 (Star Schema)' : 'Star Schema'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '팩트 테이블 중심, 디멘션으로 둘러싸인 구조' : 'Fact table center, surrounded by dimensions'}
+          </p>
+        </div>
+      </div>
+
+      {/* Star layout */}
+      <div className="relative flex flex-col items-center gap-2">
+        {/* Top dim */}
+        <button
+          onClick={() => setActiveNode(activeNode === 'date' ? null : 'date')}
+          className={`rounded-lg border ${dims[0].color}/10 border-sky-500/30 bg-sky-500/10 px-4 py-2 transition-all ${
+            activeNode === 'date' ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+          }`}
+        >
+          <p className="text-[9px] font-bold text-sky-600 dark:text-sky-400">{dims[0].label[locale]}</p>
+          <p className="text-[10px] font-mono text-muted-foreground">{dims[0].name}</p>
+        </button>
+        <div className="text-muted-foreground text-[10px]">↓ FK</div>
+
+        {/* Middle row: left dim → FACT → right dim */}
+        <div className="flex items-center gap-2 w-full justify-center">
+          <button
+            onClick={() => setActiveNode(activeNode === 'customer' ? null : 'customer')}
+            className={`rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 transition-all ${
+              activeNode === 'customer' ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">{dims[2].label[locale]}</p>
+            <p className="text-[10px] font-mono text-muted-foreground">{dims[2].name}</p>
+          </button>
+          <span className="text-muted-foreground text-[10px]">FK →</span>
+
+          <button
+            onClick={() => setActiveNode(activeNode === 'fact' ? null : 'fact')}
+            className={`rounded-lg border-2 border-rose-500/50 bg-rose-500/10 px-5 py-3 transition-all ${
+              activeNode === 'fact' ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{factTable.label[locale]}</p>
+            <p className="text-[11px] font-mono font-bold text-foreground">{factTable.name}</p>
+          </button>
+
+          <span className="text-muted-foreground text-[10px]">← FK</span>
+          <button
+            onClick={() => setActiveNode(activeNode === 'product' ? null : 'product')}
+            className={`rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 transition-all ${
+              activeNode === 'product' ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <p className="text-[9px] font-bold text-violet-600 dark:text-violet-400">{dims[1].label[locale]}</p>
+            <p className="text-[10px] font-mono text-muted-foreground">{dims[1].name}</p>
+          </button>
+        </div>
+
+        <div className="text-muted-foreground text-[10px]">↑ FK</div>
+        <button
+          onClick={() => setActiveNode(activeNode === 'store' ? null : 'store')}
+          className={`rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 transition-all ${
+            activeNode === 'store' ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+          }`}
+        >
+          <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400">{dims[3].label[locale]}</p>
+          <p className="text-[10px] font-mono text-muted-foreground">{dims[3].name}</p>
+        </button>
+      </div>
+
+      {active && (
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4 transition-all">
+          <p className="text-xs leading-relaxed mb-2">{active.desc[locale]}</p>
+          <div className="flex flex-wrap gap-1">
+            {active.cols.map((col) => (
+              <span
+                key={col}
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                  col.includes('PK')
+                    ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 font-bold'
+                    : col.includes('FK')
+                      ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                      : 'bg-background/60 text-muted-foreground'
+                }`}
+              >
+                {col}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '스타 스키마는 디멘션이 정규화되지 않아 JOIN이 적습니다. 스노우플레이크 스키마는 디멘션을 추가 정규화하여 저장 효율을 높입니다.'
+            : 'Star schema has denormalized dimensions for fewer JOINs. Snowflake schema further normalizes dimensions for storage efficiency.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Data Warehouse — ETL Pipeline
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function DataWarehouseDiagram({ locale }: DiagramProps) {
+  const [activeStep, setActiveStep] = useState<number | null>(null);
+
+  const steps = [
+    {
+      icon: '📦',
+      name: { ko: '원천 시스템', en: 'Source Systems' },
+      color: { bg: 'bg-slate-500/10', border: 'border-slate-500/30', header: 'bg-slate-600' },
+      items: ['OLTP DB', 'ERP', 'CRM', 'API', 'CSV/Excel'],
+      desc: { ko: '운영 데이터가 생성되는 다양한 원천 시스템입니다. 각각 다른 형식과 스키마를 가집니다.', en: 'Various source systems where operational data originates. Each has different formats and schemas.' },
+    },
+    {
+      icon: '⚙️',
+      name: { ko: 'ETL / ELT', en: 'ETL / ELT' },
+      color: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', header: 'bg-orange-500' },
+      items: ['Extract', 'Transform', 'Load', 'CDC'],
+      desc: { ko: 'ETL: 변환 후 적재 (전통적). ELT: 적재 후 변환 (클라우드 DW). CDC로 실시간 변경 캡처도 가능합니다.', en: 'ETL: transform then load (traditional). ELT: load then transform (cloud DW). CDC enables real-time change capture.' },
+    },
+    {
+      icon: '🏢',
+      name: { ko: '데이터 웨어하우스', en: 'Data Warehouse' },
+      color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500' },
+      items: ['Staging', 'ODS', 'DW Core', 'History'],
+      desc: { ko: '전사 통합 데이터 저장소. 주제 지향적, 통합적, 시간 가변적, 비휘발성의 4가지 특성을 가집니다.', en: 'Enterprise-wide integrated data store. Has 4 properties: subject-oriented, integrated, time-variant, non-volatile.' },
+    },
+    {
+      icon: '📊',
+      name: { ko: '데이터 마트', en: 'Data Marts' },
+      color: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', header: 'bg-violet-500' },
+      items: [
+        locale === 'ko' ? '매출 마트' : 'Sales Mart',
+        locale === 'ko' ? '마케팅 마트' : 'Marketing',
+        locale === 'ko' ? '재무 마트' : 'Finance',
+      ],
+      desc: { ko: '부서별 최적화된 소규모 데이터 저장소. DW에서 필요한 데이터만 추출하여 스타 스키마로 구성합니다.', en: 'Department-optimized small data stores. Extract needed data from DW and organize in star schema.' },
+    },
+    {
+      icon: '👤',
+      name: { ko: '소비자', en: 'Consumers' },
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500' },
+      items: ['BI Dashboard', locale === 'ko' ? '리포트' : 'Reports', 'ML/AI', 'Ad-hoc'],
+      desc: { ko: 'BI 도구, 대시보드, 리포트, ML 모델 등이 마트 데이터를 소비합니다.', en: 'BI tools, dashboards, reports, and ML models consume mart data.' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-emerald-500 text-white text-xs font-bold">
+          DW
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '데이터 웨어하우스 아키텍처' : 'Data Warehouse Architecture'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '데이터 흐름의 각 단계를 클릭하세요' : 'Click each stage of the data flow'}
+          </p>
+        </div>
+      </div>
+
+      {/* Pipeline */}
+      <div className="flex items-stretch gap-1">
+        {steps.map((step, i) => (
+          <Fragment key={i}>
+            <button
+              onClick={() => setActiveStep(activeStep === i ? null : i)}
+              className={`flex-1 rounded-lg border text-left transition-all ${step.color.border} ${step.color.bg} ${
+                activeStep === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+              }`}
+            >
+              <div className={`${step.color.header} px-2 py-1 rounded-t-[7px] text-center`}>
+                <span className="text-[10px]">{step.icon}</span>
+              </div>
+              <div className="p-2">
+                <p className="text-[10px] font-bold text-foreground text-center">{step.name[locale]}</p>
+                <div className="mt-1 space-y-0.5">
+                  {step.items.map((item, j) => (
+                    <p key={j} className="text-[8px] text-muted-foreground text-center font-mono">{item}</p>
+                  ))}
+                </div>
+              </div>
+            </button>
+            {i < steps.length - 1 && (
+              <div className="flex items-center text-muted-foreground text-xs font-bold">→</div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+
+      {activeStep !== null && (
+        <div className={`mt-3 rounded-lg border ${steps[activeStep].color.border} ${steps[activeStep].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{steps[activeStep].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '클라우드 DW(BigQuery, Redshift)에서는 ELT가 주류입니다. 원본 데이터를 먼저 적재하고 DW 엔진의 처리 능력으로 변환합니다.'
+            : 'In cloud DW (BigQuery, Redshift), ELT is mainstream. Load raw data first, then transform using the DW engine\'s processing power.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Data Migration — Strategy Comparison
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function DataMigrationDiagram({ locale }: DiagramProps) {
+  const [activeStrategy, setActiveStrategy] = useState<number | null>(null);
+
+  const strategies = [
+    {
+      name: { ko: '빅뱅', en: 'Big Bang' },
+      icon: '💥',
+      color: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', header: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+      downtime: { ko: '길다', en: 'Long' },
+      risk: { ko: '높음', en: 'High' },
+      cost: { ko: '낮음', en: 'Low' },
+      desc: { ko: '한 번에 전체 데이터를 이관합니다. 단순하지만 다운타임이 길고 롤백이 어렵습니다.', en: 'Migrate all data at once. Simple but long downtime and difficult rollback.' },
+      flow: ['Stop Old DB', '→', 'Full Dump', '→', 'Load New DB', '→', 'Switch App'],
+    },
+    {
+      name: { ko: '점진적', en: 'Trickle' },
+      icon: '🔄',
+      color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
+      downtime: { ko: '짧다', en: 'Short' },
+      risk: { ko: '중간', en: 'Medium' },
+      cost: { ko: '중간', en: 'Medium' },
+      desc: { ko: '단계별로 테이블/데이터를 나눠 이관합니다. 복잡하지만 위험을 분산합니다.', en: 'Migrate tables/data in phases. Complex but spreads risk across iterations.' },
+      flow: ['Phase 1', '→', 'Phase 2', '→', 'Phase 3', '→', 'Complete'],
+    },
+    {
+      name: { ko: '병행 운영', en: 'Parallel Run' },
+      icon: '⚡',
+      color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+      downtime: { ko: '없음', en: 'None' },
+      risk: { ko: '낮음', en: 'Low' },
+      cost: { ko: '높음', en: 'High' },
+      desc: { ko: '양쪽 시스템을 동시 운영하며 데이터를 동기화합니다. 비용은 높지만 안전합니다.', en: 'Run both systems simultaneously with data sync. Expensive but safe.' },
+      flow: ['Old DB ↔ Sync ↔ New DB', '→', 'Verify', '→', 'Cut Over'],
+    },
+    {
+      name: { ko: '블루-그린', en: 'Blue-Green' },
+      icon: '🟢',
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+      downtime: { ko: '매우 짧다', en: 'Very Short' },
+      risk: { ko: '낮음', en: 'Low' },
+      cost: { ko: '중간', en: 'Medium' },
+      desc: { ko: '새 환경을 미리 준비하고 DNS/LB로 즉시 전환합니다. 롤백도 즉시 가능합니다.', en: 'Prepare new environment in advance, switch instantly via DNS/LB. Instant rollback possible.' },
+      flow: ['Prep Green', '→', 'Replicate', '→', 'DNS Switch', '→', locale === 'ko' ? '완료' : 'Done'],
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-emerald-500 text-white text-xs font-bold">
+          MG
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '데이터 이관 전략 비교' : 'Migration Strategy Comparison'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 전략을 클릭하여 비교하세요' : 'Click each strategy to compare'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {strategies.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveStrategy(activeStrategy === i ? null : i)}
+            className={`rounded-lg border text-left transition-all ${s.color.border} ${s.color.bg} ${
+              activeStrategy === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className={`${s.color.header} px-2 py-1.5 rounded-t-[7px] text-center`}>
+              <span className="text-sm">{s.icon}</span>
+            </div>
+            <div className="p-2 text-center">
+              <p className={`text-[10px] font-bold ${s.color.text}`}>{s.name[locale]}</p>
+              <div className="mt-1.5 space-y-0.5 text-[9px] text-muted-foreground">
+                <p>{locale === 'ko' ? '다운타임' : 'Downtime'}: <span className="font-bold">{s.downtime[locale]}</span></p>
+                <p>{locale === 'ko' ? '위험도' : 'Risk'}: <span className="font-bold">{s.risk[locale]}</span></p>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeStrategy !== null && (
+        <div className={`mt-3 rounded-lg border ${strategies[activeStrategy].color.border} ${strategies[activeStrategy].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed mb-3">{strategies[activeStrategy].desc[locale]}</p>
+          <div className="flex items-center justify-center gap-1 flex-wrap">
+            {strategies[activeStrategy].flow.map((step, j) => (
+              <span
+                key={j}
+                className={`text-[9px] font-mono ${
+                  step === '→' ? 'text-muted-foreground' : 'bg-background/60 px-2 py-0.5 rounded border border-border'
+                }`}
+              >
+                {step}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '이관 후 반드시 행 수 비교, 체크섬, 샘플 검증을 수행하세요. AWS DMS나 pgloader 같은 도구를 활용하면 이종 DB 이관이 수월합니다.'
+            : 'Always perform row count comparison, checksums, and sample verification after migration. Tools like AWS DMS or pgloader simplify cross-platform migration.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DB Engine & Storage — Architecture
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function DbEngineDiagram({ locale }: DiagramProps) {
+  const [activeDb, setActiveDb] = useState<'pg' | 'mysql'>('pg');
+  const [activeLayer, setActiveLayer] = useState<number | null>(null);
+
+  const dbs = {
+    pg: {
+      name: 'PostgreSQL',
+      layers: [
+        {
+          name: 'Shared Buffers',
+          color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500' },
+          items: ['Data Pages', 'WAL Buffer', 'CLOG Buffer'],
+          desc: { ko: '디스크에서 읽은 데이터를 캐싱하는 공유 메모리 영역. RAM의 25%가 권장값입니다.', en: 'Shared memory area caching data read from disk. 25% of RAM is the recommended value.' },
+        },
+        {
+          name: 'WAL (Write-Ahead Log)',
+          color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500' },
+          items: ['Redo Records', 'Checkpoint', 'Archive'],
+          desc: { ko: '데이터 변경 전 로그를 먼저 기록하여 장애 복구를 보장합니다. 복제에도 활용됩니다.', en: 'Writes log before data changes for crash recovery. Also used for replication.' },
+        },
+        {
+          name: 'Heap / Index / TOAST',
+          color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500' },
+          items: ['Heap Files (.dat)', 'B-tree / GIN / GiST', 'TOAST (large values)'],
+          desc: { ko: '실제 디스크 저장 구조. Heap 파일에 행 데이터, B-tree 등으로 인덱스, TOAST로 대형 값을 저장합니다.', en: 'Physical disk storage. Row data in heap files, B-tree indexes, and TOAST for large values.' },
+        },
+      ],
+    },
+    mysql: {
+      name: 'MySQL (InnoDB)',
+      layers: [
+        {
+          name: 'Buffer Pool',
+          color: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', header: 'bg-orange-500' },
+          items: ['Data Pages', 'Change Buffer', 'Adaptive Hash Index'],
+          desc: { ko: 'InnoDB의 메인 캐시. RAM의 70~80%를 할당하는 것이 권장됩니다. 변경 버퍼로 쓰기를 최적화합니다.', en: 'InnoDB main cache. 70-80% of RAM recommended. Change buffer optimizes writes.' },
+        },
+        {
+          name: 'Redo / Undo Log',
+          color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500' },
+          items: ['Redo Log (WAL)', 'Undo Log (MVCC)', 'Binary Log'],
+          desc: { ko: 'Redo Log로 장애 복구, Undo Log로 트랜잭션 롤백과 MVCC를 구현합니다. Binlog은 복제용입니다.', en: 'Redo log for crash recovery, undo log for rollback and MVCC. Binary log for replication.' },
+        },
+        {
+          name: 'Tablespace (.ibd)',
+          color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500' },
+          items: ['Clustered Index (PK)', 'Secondary Indexes', 'Overflow Pages'],
+          desc: { ko: 'InnoDB는 PK 기준으로 클러스터드 인덱스에 데이터를 저장합니다. 보조 인덱스는 PK를 가리킵니다.', en: 'InnoDB stores data in a clustered index based on PK. Secondary indexes point to PK.' },
+        },
+      ],
+    },
+  };
+
+  const current = dbs[activeDb];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-orange-500 text-white text-xs font-bold">
+          EN
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '데이터베이스 스토리지 아키텍처' : 'Database Storage Architecture'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '탭으로 엔진을 전환하고 각 레이어를 클릭하세요' : 'Switch engines with tabs, click each layer'}
+          </p>
+        </div>
+      </div>
+
+      {/* DB tabs */}
+      <div className="flex gap-1 mb-4">
+        <button
+          onClick={() => { setActiveDb('pg'); setActiveLayer(null); }}
+          className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${
+            activeDb === 'pg' ? 'bg-blue-600 text-white shadow' : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+          }`}
+        >
+          PostgreSQL
+        </button>
+        <button
+          onClick={() => { setActiveDb('mysql'); setActiveLayer(null); }}
+          className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${
+            activeDb === 'mysql' ? 'bg-orange-500 text-white shadow' : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+          }`}
+        >
+          MySQL (InnoDB)
+        </button>
+      </div>
+
+      {/* Layer stack */}
+      <div className="space-y-1.5">
+        {current.layers.map((layer, i) => (
+          <button
+            key={`${activeDb}-${i}`}
+            onClick={() => setActiveLayer(activeLayer === i ? null : i)}
+            className={`w-full rounded-lg border text-left transition-all ${layer.color.border} ${layer.color.bg} ${
+              activeLayer === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-3 p-3">
+              <div className={`${layer.color.header} w-1.5 h-8 rounded-full`} />
+              <div className="flex-1">
+                <p className="text-[11px] font-bold text-foreground">{layer.name}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {layer.items.map((item) => (
+                    <span key={item} className="text-[9px] font-mono bg-background/60 px-1.5 py-0.5 rounded">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <span className="text-[9px] text-muted-foreground">
+                {i === 0 ? (locale === 'ko' ? '메모리' : 'Memory') : i === 1 ? (locale === 'ko' ? '로그' : 'Log') : (locale === 'ko' ? '디스크' : 'Disk')}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeLayer !== null && (
+        <div className={`mt-3 rounded-lg border ${current.layers[activeLayer].color.border} ${current.layers[activeLayer].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{current.layers[activeLayer].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? 'PostgreSQL은 단일 스토리지 엔진, MySQL은 플러거블 엔진(InnoDB, MyISAM 등)을 사용합니다. OLTP는 행 저장, OLAP는 컬럼 저장이 유리합니다.'
+            : 'PostgreSQL uses a single storage engine, MySQL uses pluggable engines (InnoDB, MyISAM, etc.). Row stores suit OLTP, column stores suit OLAP.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Section → Diagram Mapping
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const sectionDiagrams: Record<string, React.ComponentType<DiagramProps>> = {
   'what-is-sql': EcommerceERD,
   'schema-keys': SchemaKeysDiagrams,
+  'erd-modeling': ERDModelingDiagram,
   'select-basics': SqlExecutionOrder,
+  'data-modeling': DataModelingDiagram,
   'joins': JoinTypesDiagram,
   'partition-tables': PartitionDiagram,
   'functions-procedures': FunctionProcedureDiagram,
   'lob-data-types': StorageTiersDiagram,
+  'data-mart': DataMartDiagram,
+  'data-warehouse': DataWarehouseDiagram,
+  'data-migration': DataMigrationDiagram,
+  'db-engine-storage': DbEngineDiagram,
 };
