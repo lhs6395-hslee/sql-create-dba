@@ -2137,6 +2137,472 @@ Intentionally relaxing normalization for **performance**.
         },
       },
       {
+        id: 'relational-algebra',
+        title: { ko: '관계 대수 (Relational Algebra)', en: 'Relational Algebra' },
+        level: 'intermediate',
+        content: {
+          ko: `## 관계 대수 (Relational Algebra)
+
+관계 대수는 관계형 데이터베이스의 **수학적 기초**입니다. SQL이 "무엇을 원하는가"를 선언하면, DBMS 내부에서는 관계 대수 연산으로 변환하여 실행합니다.
+
+### 기본 연산자
+
+| 연산자 | 기호 | SQL 대응 | 설명 |
+|--------|------|----------|------|
+| **선택 (Selection)** | σ | WHERE | 조건에 맞는 **행** 필터링 |
+| **사영 (Projection)** | π | SELECT 컬럼 | 원하는 **열**만 추출 |
+| **합집합 (Union)** | ∪ | UNION | 두 릴레이션의 합집합 |
+| **차집합 (Difference)** | − | EXCEPT | 한쪽에만 있는 행 |
+| **카티션 곱 (Cartesian Product)** | × | CROSS JOIN | 모든 행 조합 |
+| **재명명 (Rename)** | ρ | AS | 릴레이션/속성 이름 변경 |
+
+### 선택 (Selection) — σ
+
+조건을 만족하는 행을 필터링합니다.
+
+\`\`\`
+σ_price>100000(Products)
+
+→ SQL: SELECT * FROM products WHERE price > 100000;
+\`\`\`
+
+**결합 조건:**
+\`\`\`
+σ_(price>100000 ∧ category_id=3)(Products)
+
+→ SQL: SELECT * FROM products WHERE price > 100000 AND category_id = 3;
+\`\`\`
+
+### 사영 (Projection) — π
+
+원하는 열만 추출합니다. 중복 행은 자동 제거됩니다.
+
+\`\`\`
+π_name,price(Products)
+
+→ SQL: SELECT DISTINCT name, price FROM products;
+\`\`\`
+
+**선택 + 사영 결합:**
+\`\`\`
+π_name,price(σ_price>100000(Products))
+
+→ SQL: SELECT DISTINCT name, price FROM products WHERE price > 100000;
+\`\`\`
+
+### 합집합, 교집합, 차집합
+
+두 릴레이션의 **스키마가 동일**(합집합 호환, union-compatible)해야 합니다.
+
+\`\`\`
+-- 합집합: 서울 또는 프리미엄 고객
+σ_city='Seoul'(Customers) ∪ σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       UNION SELECT * FROM customers WHERE is_premium = true;
+
+-- 교집합: 서울이면서 프리미엄 고객
+σ_city='Seoul'(Customers) ∩ σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       INTERSECT SELECT * FROM customers WHERE is_premium = true;
+
+-- 차집합: 서울 고객 중 프리미엄이 아닌 고객
+σ_city='Seoul'(Customers) − σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       EXCEPT SELECT * FROM customers WHERE is_premium = true;
+\`\`\`
+
+### 조인 (Join) — ⋈
+
+두 릴레이션을 조건에 따라 결합합니다.
+
+**자연 조인 (Natural Join):**
+\`\`\`
+Products ⋈ Categories
+→ 동일 이름 속성(category_id)으로 자동 결합
+→ SQL: SELECT * FROM products NATURAL JOIN categories;
+\`\`\`
+
+**세타 조인 / 동등 조인:**
+\`\`\`
+Products ⋈_(Products.category_id = Categories.id) Categories
+→ SQL: SELECT * FROM products p
+       JOIN categories c ON p.category_id = c.id;
+\`\`\`
+
+**외부 조인 (Outer Join):**
+\`\`\`
+Products ⟕ Categories   -- Left Outer Join
+Products ⟖ Categories   -- Right Outer Join
+Products ⟗ Categories   -- Full Outer Join
+\`\`\`
+
+### 관계 대수 표현식 트리
+
+SQL 쿼리는 관계 대수 트리로 변환됩니다. 옵티마이저는 이 트리를 변환하여 최적화합니다.
+
+\`\`\`
+질의: 가격 10만 이상 상품의 카테고리명
+
+     π_c.name
+       |
+     σ_p.price≥100000
+       |
+      ⋈ (p.category_id = c.id)
+     / \\
+    p    c
+(products)(categories)
+
+→ SQL:
+SELECT c.name
+FROM products p JOIN categories c ON p.category_id = c.id
+WHERE p.price >= 100000;
+\`\`\`
+
+### 관계 대수 등가 법칙
+
+옵티마이저가 사용하는 핵심 변환 규칙입니다:
+
+| 법칙 | 설명 |
+|------|------|
+| **선택 하향** | σ를 트리 아래로 내림 → 조기 필터링으로 중간 결과 축소 |
+| **사영 하향** | π를 아래로 내림 → 불필요한 열 조기 제거 |
+| **선택 분해** | σ_(A ∧ B) = σ_A(σ_B) → 조건 분리 |
+| **조인 교환** | R ⋈ S = S ⋈ R → 조인 순서 변경 |
+| **조인 결합** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → 결합 순서 변경 |
+
+> 이 법칙들은 쿼리 옵티마이저가 수백 개의 실행 계획 중 최적을 선택하는 기초입니다.`,
+          en: `## Relational Algebra
+
+Relational algebra is the **mathematical foundation** of relational databases. When SQL declares "what you want," the DBMS internally converts it to relational algebra operations for execution.
+
+### Fundamental Operators
+
+| Operator | Symbol | SQL Equivalent | Description |
+|----------|--------|---------------|-------------|
+| **Selection** | σ | WHERE | Filter **rows** by condition |
+| **Projection** | π | SELECT columns | Extract specific **columns** |
+| **Union** | ∪ | UNION | Union of two relations |
+| **Difference** | − | EXCEPT | Rows in one but not the other |
+| **Cartesian Product** | × | CROSS JOIN | All row combinations |
+| **Rename** | ρ | AS | Rename relation/attributes |
+
+### Selection — σ
+
+Filters rows that satisfy a condition.
+
+\`\`\`
+σ_price>100000(Products)
+
+→ SQL: SELECT * FROM products WHERE price > 100000;
+\`\`\`
+
+**Combined conditions:**
+\`\`\`
+σ_(price>100000 ∧ category_id=3)(Products)
+
+→ SQL: SELECT * FROM products WHERE price > 100000 AND category_id = 3;
+\`\`\`
+
+### Projection — π
+
+Extracts only desired columns. Duplicates are automatically eliminated.
+
+\`\`\`
+π_name,price(Products)
+
+→ SQL: SELECT DISTINCT name, price FROM products;
+\`\`\`
+
+**Selection + Projection combined:**
+\`\`\`
+π_name,price(σ_price>100000(Products))
+
+→ SQL: SELECT DISTINCT name, price FROM products WHERE price > 100000;
+\`\`\`
+
+### Union, Intersection, Difference
+
+Both relations must have **identical schemas** (union-compatible).
+
+\`\`\`
+-- Union: Seoul OR premium customers
+σ_city='Seoul'(Customers) ∪ σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       UNION SELECT * FROM customers WHERE is_premium = true;
+
+-- Intersection: Seoul AND premium customers
+σ_city='Seoul'(Customers) ∩ σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       INTERSECT SELECT * FROM customers WHERE is_premium = true;
+
+-- Difference: Seoul customers who are NOT premium
+σ_city='Seoul'(Customers) − σ_is_premium=true(Customers)
+→ SQL: SELECT * FROM customers WHERE city = 'Seoul'
+       EXCEPT SELECT * FROM customers WHERE is_premium = true;
+\`\`\`
+
+### Join — ⋈
+
+Combines two relations based on a condition.
+
+**Natural Join:**
+\`\`\`
+Products ⋈ Categories
+→ Automatically joins on same-named attributes (category_id)
+→ SQL: SELECT * FROM products NATURAL JOIN categories;
+\`\`\`
+
+**Theta Join / Equi-join:**
+\`\`\`
+Products ⋈_(Products.category_id = Categories.id) Categories
+→ SQL: SELECT * FROM products p
+       JOIN categories c ON p.category_id = c.id;
+\`\`\`
+
+**Outer Joins:**
+\`\`\`
+Products ⟕ Categories   -- Left Outer Join
+Products ⟖ Categories   -- Right Outer Join
+Products ⟗ Categories   -- Full Outer Join
+\`\`\`
+
+### Relational Algebra Expression Tree
+
+SQL queries are converted to relational algebra trees. The optimizer transforms this tree for optimization.
+
+\`\`\`
+Query: Category names for products priced ≥ 100K
+
+     π_c.name
+       |
+     σ_p.price≥100000
+       |
+      ⋈ (p.category_id = c.id)
+     / \\
+    p    c
+(products)(categories)
+
+→ SQL:
+SELECT c.name
+FROM products p JOIN categories c ON p.category_id = c.id
+WHERE p.price >= 100000;
+\`\`\`
+
+### Relational Algebra Equivalence Laws
+
+Core transformation rules used by the optimizer:
+
+| Law | Description |
+|-----|-------------|
+| **Selection pushdown** | Push σ down the tree → early filtering reduces intermediate results |
+| **Projection pushdown** | Push π down → remove unnecessary columns early |
+| **Selection decomposition** | σ_(A ∧ B) = σ_A(σ_B) → split conditions |
+| **Join commutativity** | R ⋈ S = S ⋈ R → swap join order |
+| **Join associativity** | (R ⋈ S) ⋈ T = R ⋈ (S ⋈ T) → reorder grouping |
+
+> These laws form the basis for the query optimizer selecting the best plan among hundreds of possible execution plans.`,
+        },
+      },
+      {
+        id: 'normalization-theory',
+        title: { ko: '정규화 이론 심화', en: 'Normalization Theory Deep Dive' },
+        level: 'intermediate',
+        content: {
+          ko: `## 함수적 종속 (Functional Dependency)
+
+정규화의 핵심 이론입니다. 속성 집합 X가 Y를 **함수적으로 결정**하면 X → Y로 표기합니다.
+
+\`\`\`
+학번 → 이름         (학번이 정해지면 이름이 하나로 결정됨)
+{학번, 과목} → 성적  (학번+과목이 정해지면 성적이 결정됨)
+\`\`\`
+
+### FD의 종류
+
+| 종류 | 정의 | 예시 |
+|------|------|------|
+| **완전 함수적 종속** | X의 진부분집합이 Y를 결정하지 못함 | {학번,과목} → 성적 |
+| **부분 함수적 종속** | X의 진부분집합이 Y를 결정함 | {학번,과목} → 이름 (학번만으로 충분) |
+| **이행적 종속** | X → Y → Z (X→Z가 간접적) | 학번 → 학과 → 학과장 |
+
+### Armstrong의 공리 (Axioms)
+
+FD를 추론하는 기본 규칙입니다:
+
+| 공리 | 설명 | 예시 |
+|------|------|------|
+| **반사 규칙** | Y ⊆ X이면 X → Y | {A,B} → A |
+| **첨가 규칙** | X → Y이면 XZ → YZ | A → B이면 AC → BC |
+| **이행 규칙** | X → Y, Y → Z이면 X → Z | A → B, B → C이면 A → C |
+
+**유도 규칙:**
+- **합집합**: X → Y, X → Z이면 X → YZ
+- **분해**: X → YZ이면 X → Y, X → Z
+- **가이행**: X → Y, WY → Z이면 WX → Z
+
+### 클로저 (Closure)
+
+속성 집합 X의 클로저 X⁺는 X에서 FD로 결정할 수 있는 **모든 속성의 집합**입니다.
+
+\`\`\`
+FD: A → B, B → C, C → D
+
+A⁺ = {A, B, C, D}   (A가 후보키!)
+B⁺ = {B, C, D}      (B는 A를 결정 못함 → 후보키 아님)
+\`\`\`
+
+**후보키 판별:** X⁺가 모든 속성을 포함하면 X는 **슈퍼키**, 그 중 최소 집합이 **후보키**
+
+### 정규형 심화
+
+**1NF (제1정규형):**
+- 모든 속성값이 원자값 (반복 그룹 없음)
+
+**2NF (제2정규형):**
+- 1NF + 모든 비주요 속성이 기본키에 **완전 함수적 종속**
+\`\`\`
+위반 예: 수강(학번, 과목번호, 이름, 성적)
+학번 → 이름 (부분 종속!) → 분리 필요
+\`\`\`
+
+**3NF (제3정규형):**
+- 2NF + **이행적 종속** 없음
+\`\`\`
+위반 예: 학생(학번, 학과, 학과장)
+학번 → 학과 → 학과장 (이행 종속!) → 학과 테이블 분리
+\`\`\`
+
+**BCNF (Boyce-Codd 정규형):**
+- 모든 결정자가 **후보키**
+- 3NF보다 엄격: 3NF를 만족해도 BCNF 위반 가능
+\`\`\`
+위반 예: 수업(학생, 과목, 교수)
+FD: 교수 → 과목 (교수가 결정자이지만 후보키가 아님!)
+→ 교수-과목 테이블 분리
+\`\`\`
+
+### 무손실 분해 (Lossless Decomposition)
+
+정규화를 위해 테이블을 분해할 때, **자연 조인으로 원래 데이터를 정확히 복원**할 수 있어야 합니다.
+
+\`\`\`
+분해 조건: R을 R1, R2로 분해할 때
+R1 ∩ R2 → R1 또는 R1 ∩ R2 → R2 이면 무손실 분해
+\`\`\`
+
+\`\`\`sql
+-- 나쁜 분해 (정보 손실)
+-- 원본: (학생, 과목, 교수)
+-- T1(학생, 과목), T2(과목, 교수) → 조인하면 가짜 행 발생 가능!
+
+-- 좋은 분해 (무손실)
+-- T1(학생, 과목, 교수), T2(교수, 과목) → 교수→과목 FD가 공통 속성에 있음
+\`\`\`
+
+### 종속성 보존 (Dependency Preservation)
+
+분해된 테이블들에서 원래 FD를 모두 **로컬하게 검증**할 수 있어야 합니다.
+
+> **실무 지침:** BCNF와 종속성 보존을 동시에 달성할 수 없는 경우가 있습니다. 이때는 3NF로 타협하는 것이 일반적입니다.`,
+          en: `## Functional Dependencies (FD)
+
+The core theory behind normalization. If attribute set X **functionally determines** Y, we write X → Y.
+
+\`\`\`
+StudentID → Name           (Given StudentID, Name is uniquely determined)
+{StudentID, Course} → Grade (Given both, Grade is determined)
+\`\`\`
+
+### Types of FDs
+
+| Type | Definition | Example |
+|------|-----------|---------|
+| **Full FD** | No proper subset of X determines Y | {StudentID, Course} → Grade |
+| **Partial FD** | A proper subset of X determines Y | {StudentID, Course} → Name (StudentID alone suffices) |
+| **Transitive FD** | X → Y → Z (X→Z is indirect) | StudentID → Dept → DeptHead |
+
+### Armstrong's Axioms
+
+Fundamental rules for inferring FDs:
+
+| Axiom | Description | Example |
+|-------|-------------|---------|
+| **Reflexivity** | If Y ⊆ X then X → Y | {A,B} → A |
+| **Augmentation** | If X → Y then XZ → YZ | A → B implies AC → BC |
+| **Transitivity** | If X → Y, Y → Z then X → Z | A → B, B → C implies A → C |
+
+**Derived rules:**
+- **Union**: X → Y, X → Z implies X → YZ
+- **Decomposition**: X → YZ implies X → Y, X → Z
+- **Pseudotransitivity**: X → Y, WY → Z implies WX → Z
+
+### Closure
+
+The closure X⁺ of attribute set X is the **set of all attributes** determinable from X via FDs.
+
+\`\`\`
+FDs: A → B, B → C, C → D
+
+A⁺ = {A, B, C, D}   (A is a candidate key!)
+B⁺ = {B, C, D}      (B cannot determine A → not a candidate key)
+\`\`\`
+
+**Candidate key test:** If X⁺ contains all attributes, X is a **superkey**; the minimal such set is a **candidate key**.
+
+### Normal Forms In Depth
+
+**1NF (First Normal Form):**
+- All attribute values are atomic (no repeating groups)
+
+**2NF (Second Normal Form):**
+- 1NF + every non-key attribute is **fully functionally dependent** on the primary key
+\`\`\`
+Violation: Enrollment(StudentID, CourseID, StudentName, Grade)
+StudentID → StudentName (partial dependency!) → must decompose
+\`\`\`
+
+**3NF (Third Normal Form):**
+- 2NF + no **transitive dependencies**
+\`\`\`
+Violation: Student(StudentID, Dept, DeptHead)
+StudentID → Dept → DeptHead (transitive!) → split into Dept table
+\`\`\`
+
+**BCNF (Boyce-Codd Normal Form):**
+- Every determinant must be a **candidate key**
+- Stricter than 3NF: a relation can satisfy 3NF but violate BCNF
+\`\`\`
+Violation: Class(Student, Course, Professor)
+FD: Professor → Course (Professor is a determinant but NOT a candidate key!)
+→ Decompose into Professor-Course table
+\`\`\`
+
+### Lossless Decomposition
+
+When decomposing tables for normalization, **natural join must exactly reconstruct the original data**.
+
+\`\`\`
+Condition: When decomposing R into R1, R2:
+R1 ∩ R2 → R1  OR  R1 ∩ R2 → R2  guarantees lossless decomposition
+\`\`\`
+
+\`\`\`sql
+-- Bad decomposition (information loss)
+-- Original: (Student, Course, Professor)
+-- T1(Student, Course), T2(Course, Professor) → Join may produce spurious tuples!
+
+-- Good decomposition (lossless)
+-- T1(Student, Course, Professor), T2(Professor, Course) → FD Professor→Course on common attrs
+\`\`\`
+
+### Dependency Preservation
+
+All original FDs should be verifiable **locally** within the decomposed tables.
+
+> **Practical guideline:** It's sometimes impossible to achieve both BCNF and dependency preservation. In such cases, settling for 3NF is the common practice.`,
+        },
+      },
+      {
         id: 'joins',
         title: { ko: 'JOIN: 테이블 결합', en: 'JOIN: Combining Tables' },
         level: 'intermediate',
@@ -3352,6 +3818,275 @@ HAVING AVG(r.rating) >= 4.5;
 \`\`\``,
         },
       },
+      {
+        id: 'query-processing',
+        title: { ko: '쿼리 처리와 최적화', en: 'Query Processing & Optimization' },
+        level: 'advanced',
+        content: {
+          ko: `## 쿼리 처리 파이프라인
+
+SQL 쿼리가 결과를 반환하기까지 DBMS 내부에서 거치는 단계입니다.
+
+\`\`\`
+SQL 문자열
+    ↓
+[1. 파싱 (Parsing)]           → 구문 분석, 파스 트리 생성
+    ↓
+[2. 의미 분석 (Semantic)]      → 테이블/컬럼 존재 확인, 타입 검사
+    ↓
+[3. 쿼리 재작성 (Rewriting)]   → 뷰 확장, 서브쿼리 변환, 상수 폴딩
+    ↓
+[4. 최적화 (Optimization)]     → 실행 계획 탐색, 비용 추정, 최적 계획 선택
+    ↓
+[5. 실행 (Execution)]          → 선택된 계획에 따라 데이터 접근 및 반환
+\`\`\`
+
+### 1. 파싱 (Parsing)
+
+SQL 문자열을 **파스 트리(Parse Tree)**로 변환합니다.
+
+\`\`\`sql
+SELECT name FROM products WHERE price > 100000;
+\`\`\`
+
+\`\`\`
+        SELECT
+       /      \\
+  target_list  FROM
+     |          |
+    name     products
+               |
+             WHERE
+               |
+          price > 100000
+\`\`\`
+
+- **어휘 분석(Lexer)**: SQL을 토큰으로 분리 (SELECT, name, FROM, ...)
+- **구문 분석(Parser)**: 문법 규칙에 따라 트리 구성
+- **구문 오류**: 이 단계에서 감지 (예: \`SELCT\` 오타)
+
+### 2. 쿼리 재작성 (Query Rewriting)
+
+파스 트리를 더 효율적인 형태로 변환합니다.
+
+| 변환 | 설명 | 예시 |
+|------|------|------|
+| **뷰 확장** | 뷰를 원래 쿼리로 대체 | \`SELECT * FROM my_view\` → 원본 쿼리 |
+| **서브쿼리 비중첩화** | 서브쿼리를 JOIN으로 변환 | \`IN (SELECT...)\` → \`JOIN\` |
+| **상수 폴딩** | 상수 계산을 미리 수행 | \`WHERE x > 2+3\` → \`WHERE x > 5\` |
+| **조건 하향** | WHERE 조건을 가능한 아래로 이동 | JOIN 전에 필터링 |
+| **불필요 JOIN 제거** | 결과에 영향 없는 JOIN 제거 | FK가 보장된 INNER JOIN |
+
+### 3. 옵티마이저 (Query Optimizer)
+
+실행 계획을 탐색하고 비용을 추정하여 **최적 계획**을 선택합니다.
+
+**비용 기반 최적화 (Cost-Based Optimization):**
+\`\`\`
+실행 계획 후보:
+  계획 A: Seq Scan → Hash Join     비용: 1,500
+  계획 B: Index Scan → Nested Loop  비용: 320   ← 선택!
+  계획 C: Seq Scan → Merge Join    비용: 2,100
+\`\`\`
+
+**핵심 결정 사항:**
+
+| 결정 | 선택지 | 영향 요인 |
+|------|--------|----------|
+| **접근 경로** | Seq Scan vs Index Scan vs Index Only Scan | 선택도, 테이블 크기, 인덱스 유무 |
+| **조인 방법** | Nested Loop vs Hash Join vs Merge Join | 테이블 크기, 메모리, 정렬 여부 |
+| **조인 순서** | n개 테이블의 조인 순서 | 중간 결과 크기 최소화 |
+
+### 조인 알고리즘
+
+| 알고리즘 | 원리 | 최적 상황 |
+|---------|------|----------|
+| **Nested Loop** | 외부 행마다 내부 테이블 스캔 | 내부 테이블에 인덱스, 작은 외부 테이블 |
+| **Hash Join** | 한쪽을 해시 테이블로 빌드, 다른 쪽으로 프로빙 | 등호 조인, 메모리 충분 |
+| **Merge Join** | 양쪽 정렬 후 병합 | 이미 정렬된 데이터, 범위 조인 |
+
+\`\`\`sql
+-- PostgreSQL에서 조인 알고리즘 확인
+EXPLAIN ANALYZE
+SELECT o.id, c.name
+FROM orders o
+JOIN customers c ON o.customer_id = c.id;
+-- → Hash Join, Nested Loop, Merge Join 중 하나 표시
+\`\`\`
+
+### 카디널리티 추정 (Cardinality Estimation)
+
+옵티마이저의 비용 추정 정확도를 좌우하는 핵심입니다.
+
+\`\`\`
+테이블 products: 1,000행
+조건: category_id = 3
+
+통계 정보:
+- n_distinct(category_id) = 20
+- 균등 분포 가정: 1,000 / 20 = 50행 예상
+
+실제: 300행 → 추정 오류 → 잘못된 계획 선택 가능!
+\`\`\`
+
+**추정 오류의 원인:**
+- **오래된 통계** → \`ANALYZE\` 실행으로 갱신
+- **상관된 컬럼** → 독립 가정의 한계 (PG 10+: \`CREATE STATISTICS\`로 다중 컬럼 통계)
+- **비균등 분포** → Most Common Values (MCV) 통계로 보완
+
+\`\`\`sql
+-- 다중 컬럼 통계 생성 (PostgreSQL 10+)
+CREATE STATISTICS stats_city_premium ON city, is_premium FROM customers;
+ANALYZE customers;
+\`\`\`
+
+### 실행 엔진 (Execution Engine)
+
+**Volcano / Iterator 모델:**
+- 각 연산자가 \`next()\` 함수를 제공
+- 상위 연산자가 하위에 \`next()\`를 호출하여 행을 한 건씩 당겨옴 (pull model)
+- PostgreSQL이 사용하는 모델
+
+\`\`\`
+π_name → next() → σ_price>100000 → next() → Seq Scan → 디스크에서 행 읽기
+\`\`\`
+
+**Materialization 모델:**
+- 각 연산자가 전체 결과를 메모리에 생성 후 상위에 전달
+- 메모리 사용량이 큼, 단순한 쿼리에 적합`,
+          en: `## Query Processing Pipeline
+
+The stages a SQL query goes through inside the DBMS before returning results.
+
+\`\`\`
+SQL string
+    ↓
+[1. Parsing]                   → Syntax analysis, parse tree generation
+    ↓
+[2. Semantic Analysis]          → Verify tables/columns exist, type checking
+    ↓
+[3. Query Rewriting]            → View expansion, subquery transformation, constant folding
+    ↓
+[4. Optimization]               → Explore execution plans, estimate costs, select optimal plan
+    ↓
+[5. Execution]                  → Access data and return results per selected plan
+\`\`\`
+
+### 1. Parsing
+
+Converts the SQL string into a **Parse Tree**.
+
+\`\`\`sql
+SELECT name FROM products WHERE price > 100000;
+\`\`\`
+
+\`\`\`
+        SELECT
+       /      \\
+  target_list  FROM
+     |          |
+    name     products
+               |
+             WHERE
+               |
+          price > 100000
+\`\`\`
+
+- **Lexer**: Splits SQL into tokens (SELECT, name, FROM, ...)
+- **Parser**: Builds tree according to grammar rules
+- **Syntax errors**: Detected at this stage (e.g., \`SELCT\` typo)
+
+### 2. Query Rewriting
+
+Transforms the parse tree into a more efficient form.
+
+| Transformation | Description | Example |
+|---------------|-------------|---------|
+| **View expansion** | Replace view with original query | \`SELECT * FROM my_view\` → original query |
+| **Subquery unnesting** | Convert subquery to JOIN | \`IN (SELECT...)\` → \`JOIN\` |
+| **Constant folding** | Pre-compute constants | \`WHERE x > 2+3\` → \`WHERE x > 5\` |
+| **Predicate pushdown** | Move WHERE conditions down | Filter before JOIN |
+| **Redundant JOIN elimination** | Remove JOINs that don't affect results | FK-guaranteed INNER JOINs |
+
+### 3. Query Optimizer
+
+Explores execution plans and estimates costs to select the **optimal plan**.
+
+**Cost-Based Optimization (CBO):**
+\`\`\`
+Candidate plans:
+  Plan A: Seq Scan → Hash Join     cost: 1,500
+  Plan B: Index Scan → Nested Loop  cost: 320   ← Selected!
+  Plan C: Seq Scan → Merge Join    cost: 2,100
+\`\`\`
+
+**Key Decisions:**
+
+| Decision | Options | Factors |
+|----------|---------|---------|
+| **Access path** | Seq Scan vs Index Scan vs Index Only Scan | Selectivity, table size, index availability |
+| **Join method** | Nested Loop vs Hash Join vs Merge Join | Table sizes, memory, sort order |
+| **Join ordering** | Order of joining n tables | Minimize intermediate result sizes |
+
+### Join Algorithms
+
+| Algorithm | Principle | Best For |
+|-----------|-----------|----------|
+| **Nested Loop** | Scan inner table for each outer row | Index on inner table, small outer table |
+| **Hash Join** | Build hash table on one side, probe with other | Equality joins, sufficient memory |
+| **Merge Join** | Sort both sides, then merge | Pre-sorted data, range joins |
+
+\`\`\`sql
+-- Check join algorithm in PostgreSQL
+EXPLAIN ANALYZE
+SELECT o.id, c.name
+FROM orders o
+JOIN customers c ON o.customer_id = c.id;
+-- → Shows Hash Join, Nested Loop, or Merge Join
+\`\`\`
+
+### Cardinality Estimation
+
+The key factor determining the accuracy of the optimizer's cost estimates.
+
+\`\`\`
+Table products: 1,000 rows
+Condition: category_id = 3
+
+Statistics:
+- n_distinct(category_id) = 20
+- Uniform distribution assumption: 1,000 / 20 = 50 rows expected
+
+Actual: 300 rows → estimation error → possibly wrong plan!
+\`\`\`
+
+**Sources of estimation errors:**
+- **Stale statistics** → Run \`ANALYZE\` to refresh
+- **Correlated columns** → Independence assumption limitation (PG 10+: \`CREATE STATISTICS\` for multi-column stats)
+- **Non-uniform distribution** → Compensated by Most Common Values (MCV) statistics
+
+\`\`\`sql
+-- Create multi-column statistics (PostgreSQL 10+)
+CREATE STATISTICS stats_city_premium ON city, is_premium FROM customers;
+ANALYZE customers;
+\`\`\`
+
+### Execution Engine
+
+**Volcano / Iterator Model:**
+- Each operator provides a \`next()\` function
+- Parent operator calls \`next()\` on child to pull one row at a time (pull model)
+- Used by PostgreSQL
+
+\`\`\`
+π_name → next() → σ_price>100000 → next() → Seq Scan → read row from disk
+\`\`\`
+
+**Materialization Model:**
+- Each operator produces its entire result in memory, then passes it up
+- Higher memory usage, suitable for simple queries`,
+        },
+      },
     ],
   },
 
@@ -3996,6 +4731,213 @@ Cannot release locks       Cannot acquire locks
 | **Rigorous 2PL** | Release all locks (shared + exclusive) at commit/rollback |
 
 > Most commercial RDBMS use **Strict 2PL**.`,
+        },
+      },
+      {
+        id: 'concurrency-theory',
+        title: { ko: '동시성 제어 이론', en: 'Concurrency Control Theory' },
+        level: 'expert',
+        content: {
+          ko: `## 스케줄과 직렬 가능성 (Serializability)
+
+동시에 실행되는 트랜잭션의 연산 순서를 **스케줄(Schedule)**이라 합니다.
+
+### 스케줄의 유형
+
+| 유형 | 정의 | 특징 |
+|------|------|------|
+| **직렬 스케줄** | 트랜잭션이 순차적으로 실행 | 항상 정확, 성능 최악 |
+| **직렬 가능 스케줄** | 직렬 스케줄과 동일한 결과 | 정확하면서 동시성 허용 |
+| **비직렬 가능 스케줄** | 직렬 스케줄과 다른 결과 | 데이터 불일치 발생! |
+
+\`\`\`
+직렬 스케줄 (T1 → T2):
+T1: R(A) W(A)           R(B) W(B)
+T2:              R(A) W(A)           R(B) W(B)
+
+비직렬 스케줄 (인터리빙):
+T1: R(A) W(A)      R(B) W(B)
+T2:           R(A)            W(A) R(B) W(B)
+→ 이 스케줄이 직렬 가능한가? → 충돌 그래프로 판별
+\`\`\`
+
+### 충돌 직렬 가능성 (Conflict Serializability)
+
+두 연산이 **충돌(Conflict)**하는 조건:
+1. 서로 다른 트랜잭션에 속함
+2. 같은 데이터 항목에 접근
+3. 둘 중 하나 이상이 쓰기(Write)
+
+| 연산 쌍 | 충돌 여부 |
+|---------|----------|
+| R(A), R(A) | 비충돌 (읽기-읽기) |
+| R(A), W(A) | **충돌** (읽기-쓰기) |
+| W(A), R(A) | **충돌** (쓰기-읽기) |
+| W(A), W(A) | **충돌** (쓰기-쓰기) |
+
+### 선행 그래프 (Precedence Graph)
+
+충돌 직렬 가능성을 판별하는 그래프입니다.
+
+\`\`\`
+구성 방법:
+1. 각 트랜잭션을 노드로
+2. Ti의 연산이 Tj의 충돌 연산보다 앞서면 Ti → Tj 간선 추가
+
+판별:
+- 사이클 없음 → 충돌 직렬 가능 ✓
+- 사이클 있음 → 충돌 직렬 불가능 ✗
+\`\`\`
+
+\`\`\`
+예시:
+T1: R(A) W(A)      R(B) W(B)
+T2:           R(A)            W(A) R(B) W(B)
+
+충돌 쌍:
+- T1.W(A) < T2.R(A) → T1 → T2
+- T2.W(A) < T1.R(B) → T2 → T1  (B는 별개 데이터이므로 이건 충돌 아님!)
+
+실제로 A에 대해만: T1 → T2
+B에 대해: T1.W(B) < T2.R(B) → T1 → T2
+
+그래프: T1 → T2 (사이클 없음 → 직렬 가능!)
+\`\`\`
+
+### 타임스탬프 순서 (Timestamp Ordering, T/O)
+
+잠금을 사용하지 않는 동시성 제어 방식입니다.
+
+\`\`\`
+각 트랜잭션 Ti에 타임스탬프 TS(Ti) 부여
+각 데이터 X에 기록:
+  - W_TS(X): X를 마지막으로 쓴 트랜잭션의 타임스탬프
+  - R_TS(X): X를 마지막으로 읽은 트랜잭션의 타임스탬프
+\`\`\`
+
+**규칙:**
+| 연산 | 조건 | 처리 |
+|------|------|------|
+| Ti가 Read(X) | TS(Ti) < W_TS(X) | Ti 중단 (미래 값을 읽으려 함) |
+| Ti가 Write(X) | TS(Ti) < R_TS(X) | Ti 중단 (과거 값을 덮으려 함) |
+| Ti가 Write(X) | TS(Ti) < W_TS(X) | **Thomas Write Rule**: 쓰기 무시 (이미 더 최신 값 존재) |
+
+### MVCC (다중 버전 동시성 제어)
+
+현대 DBMS (PostgreSQL, MySQL InnoDB)가 사용하는 방식입니다.
+
+\`\`\`
+핵심 아이디어:
+- 각 쓰기는 데이터의 새 버전을 생성
+- 각 읽기는 트랜잭션 시작 시점의 스냅샷에서 적절한 버전을 선택
+- 읽기가 쓰기를 차단하지 않음!
+\`\`\`
+
+| 방식 | 장점 | 단점 |
+|------|------|------|
+| **Lock-Based (2PL)** | 구현 단순, 직렬 가능성 보장 | 교착 상태, 읽기도 차단 |
+| **Timestamp Ordering** | 교착 상태 없음 | 재시작(abort) 빈번 |
+| **MVCC** | 읽기 비차단, 높은 동시성 | 오래된 버전 정리 필요 (VACUUM) |
+
+> PostgreSQL은 **MVCC + SSI(Serializable Snapshot Isolation)**로 SERIALIZABLE 수준을 구현합니다.`,
+          en: `## Schedules and Serializability
+
+The order of operations from concurrent transactions is called a **Schedule**.
+
+### Types of Schedules
+
+| Type | Definition | Characteristics |
+|------|-----------|----------------|
+| **Serial Schedule** | Transactions execute sequentially | Always correct, worst performance |
+| **Serializable Schedule** | Produces same result as some serial schedule | Correct with concurrency |
+| **Non-serializable Schedule** | Produces different result than any serial | Data inconsistency! |
+
+\`\`\`
+Serial Schedule (T1 → T2):
+T1: R(A) W(A)           R(B) W(B)
+T2:              R(A) W(A)           R(B) W(B)
+
+Non-serial Schedule (interleaved):
+T1: R(A) W(A)      R(B) W(B)
+T2:           R(A)            W(A) R(B) W(B)
+→ Is this serializable? → Use precedence graph to determine
+\`\`\`
+
+### Conflict Serializability
+
+Two operations **conflict** when:
+1. They belong to different transactions
+2. They access the same data item
+3. At least one is a Write
+
+| Operation Pair | Conflict? |
+|---------------|-----------|
+| R(A), R(A) | No (read-read) |
+| R(A), W(A) | **Yes** (read-write) |
+| W(A), R(A) | **Yes** (write-read) |
+| W(A), W(A) | **Yes** (write-write) |
+
+### Precedence Graph
+
+A graph used to test conflict serializability.
+
+\`\`\`
+Construction:
+1. Create a node for each transaction
+2. If Ti's operation precedes a conflicting operation in Tj, add edge Ti → Tj
+
+Test:
+- No cycle → Conflict serializable ✓
+- Has cycle → NOT conflict serializable ✗
+\`\`\`
+
+\`\`\`
+Example:
+T1: R(A) W(A)      R(B) W(B)
+T2:           R(A)            W(A) R(B) W(B)
+
+Conflicts on A: T1.W(A) before T2.R(A) → T1 → T2
+Conflicts on B: T1.W(B) before T2.R(B) → T1 → T2
+
+Graph: T1 → T2 (no cycle → serializable!)
+\`\`\`
+
+### Timestamp Ordering (T/O)
+
+A concurrency control method that does NOT use locks.
+
+\`\`\`
+Each transaction Ti receives timestamp TS(Ti)
+Each data item X tracks:
+  - W_TS(X): timestamp of last transaction that wrote X
+  - R_TS(X): timestamp of last transaction that read X
+\`\`\`
+
+**Rules:**
+| Operation | Condition | Action |
+|-----------|-----------|--------|
+| Ti reads X | TS(Ti) < W_TS(X) | Abort Ti (trying to read a future value) |
+| Ti writes X | TS(Ti) < R_TS(X) | Abort Ti (trying to overwrite a past value) |
+| Ti writes X | TS(Ti) < W_TS(X) | **Thomas Write Rule**: skip write (newer value exists) |
+
+### MVCC (Multi-Version Concurrency Control)
+
+The approach used by modern DBMS (PostgreSQL, MySQL InnoDB).
+
+\`\`\`
+Core idea:
+- Each write creates a new version of the data
+- Each read selects the appropriate version from the transaction's start snapshot
+- Reads never block writes!
+\`\`\`
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Lock-Based (2PL)** | Simple, guarantees serializability | Deadlocks, reads blocked |
+| **Timestamp Ordering** | No deadlocks | Frequent aborts |
+| **MVCC** | Non-blocking reads, high concurrency | Old versions need cleanup (VACUUM) |
+
+> PostgreSQL implements SERIALIZABLE level using **MVCC + SSI (Serializable Snapshot Isolation)**.`,
         },
       },
       {
@@ -7002,6 +7944,249 @@ mysqlbinlog --start-datetime="2024-08-15 14:00:00" \\
 | Parallel | pg_dump -Fd -j N | MySQL Shell dump-instance |
 | PITR | WAL archiving + restore_command | Binary Log + mysqlbinlog |
 | Automation | pgBackRest, Barman | Percona XtraBackup, mysqlbackup |`,
+        },
+      },
+      {
+        id: 'aries-recovery',
+        title: { ko: 'WAL과 ARIES 복구 알고리즘', en: 'WAL & ARIES Recovery Algorithm' },
+        level: 'database',
+        content: {
+          ko: `## Write-Ahead Logging (WAL)
+
+데이터베이스 복구의 핵심 원칙: **데이터를 디스크에 쓰기 전에, 로그를 먼저 디스크에 쓴다.**
+
+\`\`\`
+트랜잭션 실행:
+  1. 변경 내용을 WAL 로그에 기록 (디스크)
+  2. 변경된 페이지는 버퍼 풀에만 반영 (메모리)
+  3. 체크포인트 시 또는 비동기로 데이터 파일에 반영 (디스크)
+\`\`\`
+
+### WAL 레코드 구조
+
+\`\`\`
+[LSN] [TransactionID] [Type] [PageID] [Offset] [Before Image] [After Image]
+
+예시:
+LSN=101  T1  UPDATE  Page5  Offset=200  Before='old_value'  After='new_value'
+LSN=102  T1  COMMIT
+LSN=103  T2  INSERT  Page8  Offset=400  Before=NULL  After='row_data'
+LSN=104  T2  ABORT
+\`\`\`
+
+- **LSN (Log Sequence Number)**: 로그 레코드의 고유 순번 (단조 증가)
+- **Before Image**: 변경 전 데이터 (UNDO에 사용)
+- **After Image**: 변경 후 데이터 (REDO에 사용)
+
+### 체크포인트 (Checkpoint)
+
+주기적으로 메모리의 더티 페이지를 디스크에 반영하고 로그에 기록합니다.
+
+\`\`\`
+[체크포인트 기록 내용]
+- 활성 트랜잭션 목록 (Active Transaction Table, ATT)
+- 더티 페이지 목록 (Dirty Page Table, DPT)
+- 각 더티 페이지의 recLSN (최초 수정 시점)
+\`\`\`
+
+\`\`\`sql
+-- PostgreSQL 체크포인트 설정
+SHOW checkpoint_timeout;     -- 기본: 5분
+SHOW max_wal_size;           -- 기본: 1GB (초과 시 체크포인트)
+
+-- 수동 체크포인트
+CHECKPOINT;
+\`\`\`
+
+## ARIES 복구 알고리즘
+
+**ARIES (Algorithm for Recovery and Isolation Exploiting Semantics)**는 대부분의 상용 DBMS가 사용하는 복구 알고리즘입니다.
+
+### 3단계 복구 프로세스
+
+\`\`\`
+장애 발생!
+    ↓
+[1. 분석 단계 (Analysis)]
+- 마지막 체크포인트부터 로그를 순방향 스캔
+- 장애 시점의 활성 트랜잭션 목록 (ATT) 재구성
+- 더티 페이지 목록 (DPT) 재구성
+    ↓
+[2. REDO 단계 (Redo)]
+- DPT의 가장 작은 recLSN부터 로그를 순방향 재실행
+- 커밋된 트랜잭션과 미커밋 트랜잭션 모두 REDO
+- "Repeating history" — 장애 직전 상태를 정확히 복원
+    ↓
+[3. UNDO 단계 (Undo)]
+- ATT에 남은 미커밋 트랜잭션을 역방향으로 취소
+- 각 UNDO 작업도 CLR(Compensation Log Record)로 기록
+- 모든 미커밋 트랜잭션이 롤백되면 복구 완료
+\`\`\`
+
+### REDO 판단 로직
+
+\`\`\`
+페이지 P에 대한 로그 레코드(LSN=L)를 REDO할지 판단:
+
+1. P가 DPT에 없으면 → SKIP (더티 아님)
+2. DPT[P].recLSN > L → SKIP (이미 반영됨)
+3. 디스크 페이지의 pageLSN ≥ L → SKIP (이미 반영됨)
+4. 위 조건 모두 해당 없으면 → REDO!
+\`\`\`
+
+### CLR (Compensation Log Record)
+
+UNDO 중에 생성되는 보상 로그입니다.
+
+\`\`\`
+LSN=105  T2  CLR  Page8  UNDO of LSN=103  undoNextLSN=NULL
+
+의미: T2의 LSN=103 작업을 취소함
+undoNextLSN: 다음에 UNDO할 로그 (NULL이면 T2의 UNDO 완료)
+\`\`\`
+
+> CLR이 있기에 **복구 중 다시 장애가 발생해도** 안전합니다. 이미 UNDO된 작업은 다시 UNDO하지 않습니다.
+
+### 실무에서의 WAL
+
+\`\`\`sql
+-- PostgreSQL WAL 상태 확인
+SELECT pg_current_wal_lsn();           -- 현재 WAL 위치
+SELECT pg_walfile_name(pg_current_wal_lsn()); -- 현재 WAL 파일명
+SELECT pg_wal_lsn_diff(
+  pg_current_wal_lsn(),
+  '0/0'::pg_lsn
+) / 1024 / 1024 AS wal_mb;            -- WAL 총 생성량 (MB)
+
+-- WAL 관련 설정
+SHOW wal_level;              -- minimal, replica, logical
+SHOW wal_buffers;            -- WAL 버퍼 크기
+SHOW synchronous_commit;     -- 동기 커밋 여부
+\`\`\`
+
+| 설정 | 기본값 | 설명 |
+|------|--------|------|
+| \`wal_level\` | replica | WAL 기록 수준 (PITR/복제에 필요) |
+| \`synchronous_commit\` | on | off: 성능↑, 장애 시 최근 커밋 유실 가능 |
+| \`full_page_writes\` | on | 체크포인트 후 첫 수정 시 전체 페이지 기록 (torn page 방지) |`,
+          en: `## Write-Ahead Logging (WAL)
+
+The core principle of database recovery: **Write the log to disk BEFORE writing the data to disk.**
+
+\`\`\`
+Transaction execution:
+  1. Write changes to WAL log (disk)
+  2. Modified pages only reflected in buffer pool (memory)
+  3. Data files written at checkpoint or asynchronously (disk)
+\`\`\`
+
+### WAL Record Structure
+
+\`\`\`
+[LSN] [TransactionID] [Type] [PageID] [Offset] [Before Image] [After Image]
+
+Example:
+LSN=101  T1  UPDATE  Page5  Offset=200  Before='old_value'  After='new_value'
+LSN=102  T1  COMMIT
+LSN=103  T2  INSERT  Page8  Offset=400  Before=NULL  After='row_data'
+LSN=104  T2  ABORT
+\`\`\`
+
+- **LSN (Log Sequence Number)**: Unique monotonically increasing ID for each log record
+- **Before Image**: Data before modification (used for UNDO)
+- **After Image**: Data after modification (used for REDO)
+
+### Checkpoint
+
+Periodically flushes dirty pages from memory to disk and records this in the log.
+
+\`\`\`
+[Checkpoint records]
+- Active Transaction Table (ATT)
+- Dirty Page Table (DPT)
+- recLSN for each dirty page (first modification time)
+\`\`\`
+
+\`\`\`sql
+-- PostgreSQL checkpoint settings
+SHOW checkpoint_timeout;     -- Default: 5min
+SHOW max_wal_size;           -- Default: 1GB (triggers checkpoint when exceeded)
+
+-- Manual checkpoint
+CHECKPOINT;
+\`\`\`
+
+## ARIES Recovery Algorithm
+
+**ARIES (Algorithm for Recovery and Isolation Exploiting Semantics)** is the recovery algorithm used by most commercial DBMS.
+
+### 3-Phase Recovery Process
+
+\`\`\`
+Crash!
+    ↓
+[1. Analysis Phase]
+- Forward scan log from last checkpoint
+- Reconstruct Active Transaction Table (ATT) at crash time
+- Reconstruct Dirty Page Table (DPT)
+    ↓
+[2. REDO Phase]
+- Forward replay log from smallest recLSN in DPT
+- REDO both committed AND uncommitted transactions
+- "Repeating history" — exactly restore pre-crash state
+    ↓
+[3. UNDO Phase]
+- Reverse uncommitted transactions remaining in ATT
+- Each UNDO action is logged as a CLR (Compensation Log Record)
+- Recovery complete when all uncommitted transactions are rolled back
+\`\`\`
+
+### REDO Decision Logic
+
+\`\`\`
+For log record (LSN=L) on page P:
+
+1. P not in DPT → SKIP (not dirty)
+2. DPT[P].recLSN > L → SKIP (already applied)
+3. Disk page's pageLSN ≥ L → SKIP (already applied)
+4. None of the above → REDO!
+\`\`\`
+
+### CLR (Compensation Log Record)
+
+Compensation logs generated during UNDO.
+
+\`\`\`
+LSN=105  T2  CLR  Page8  UNDO of LSN=103  undoNextLSN=NULL
+
+Meaning: Undid T2's operation at LSN=103
+undoNextLSN: Next log to UNDO (NULL means T2's UNDO is complete)
+\`\`\`
+
+> CLRs ensure safety even if **another crash occurs during recovery**. Already-undone operations won't be undone again.
+
+### WAL in Practice
+
+\`\`\`sql
+-- PostgreSQL WAL status
+SELECT pg_current_wal_lsn();           -- Current WAL position
+SELECT pg_walfile_name(pg_current_wal_lsn()); -- Current WAL filename
+SELECT pg_wal_lsn_diff(
+  pg_current_wal_lsn(),
+  '0/0'::pg_lsn
+) / 1024 / 1024 AS wal_mb;            -- Total WAL generated (MB)
+
+-- WAL settings
+SHOW wal_level;              -- minimal, replica, logical
+SHOW wal_buffers;            -- WAL buffer size
+SHOW synchronous_commit;     -- Synchronous commit flag
+\`\`\`
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| \`wal_level\` | replica | WAL recording level (needed for PITR/replication) |
+| \`synchronous_commit\` | on | off: better performance, risk of losing recent commits on crash |
+| \`full_page_writes\` | on | Write full page on first modification after checkpoint (prevents torn pages) |`,
         },
       },
       {
