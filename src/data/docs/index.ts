@@ -6182,6 +6182,1188 @@ WHERE attrelid = 'reviews'::regclass AND attnum > 0;
 \`\`\``,
         },
       },
+      {
+        id: 'backup-recovery',
+        title: { ko: '백업과 복구', en: 'Backup & Recovery' },
+        level: 'database',
+        content: {
+          ko: `## 백업과 복구 (Backup & Recovery)
+
+데이터 손실에 대비하여 백업을 수행하고, 장애 발생 시 복구하는 DBA 핵심 업무입니다.
+
+### 백업 유형
+
+| 유형 | 설명 | 특징 |
+|------|------|------|
+| **논리적 백업** | SQL 형태로 덤프 | 이식성 높음, 느림 |
+| **물리적 백업** | 데이터 파일 직접 복사 | 빠름, 동일 DBMS만 |
+| **전체 백업 (Full)** | 전체 DB 백업 | 복구 단순, 저장 공간 큼 |
+| **증분 백업 (Incremental)** | 변경분만 백업 | 공간 절약, 복구 복잡 |
+| **차등 백업 (Differential)** | 마지막 전체 백업 이후 변경분 | Full + Diff로 복구 |
+
+### PostgreSQL 백업
+
+#### pg_dump (논리적 백업)
+
+\`\`\`bash
+# 텍스트 형식 (사람이 읽기 가능)
+pg_dump -h localhost -U postgres mydb > backup.sql
+
+# 커스텀 형식 (압축, 병렬 복원 가능) ← 권장
+pg_dump -Fc -h localhost -U postgres mydb > backup.custom
+
+# 디렉토리 형식 (병렬 덤프 가능)
+pg_dump -Fd -j 4 mydb -f backup_dir/
+
+# 특정 테이블만
+pg_dump -t orders -t order_items mydb > orders_backup.sql
+
+# 스키마만 (데이터 제외)
+pg_dump --schema-only mydb > schema.sql
+
+# 데이터만 (스키마 제외)
+pg_dump --data-only mydb > data.sql
+\`\`\`
+
+#### pg_restore (복원)
+
+\`\`\`bash
+# 커스텀 포맷 복원
+pg_restore -d mydb backup.custom
+
+# 병렬 복원 (4 프로세스)
+pg_restore -j 4 -d mydb backup.custom
+
+# 클린 복원 (기존 객체 삭제 후 복원)
+pg_restore --clean --if-exists -d mydb backup.custom
+
+# 텍스트 형식 복원
+psql -d mydb < backup.sql
+\`\`\`
+
+#### pg_basebackup (물리적 백업)
+
+\`\`\`bash
+# 전체 클러스터 물리적 백업
+pg_basebackup -h localhost -U replicator \\
+  -D /backup/base -Ft -z -P
+
+# WAL 포함 백업 (독립 복구 가능)
+pg_basebackup -D /backup/base -Ft -z \\
+  --wal-method=stream -P
+\`\`\`
+
+#### PITR (Point-In-Time Recovery)
+
+\`\`\`bash
+# 1. postgresql.conf에서 WAL 아카이빙 설정
+# archive_mode = on
+# archive_command = 'cp %p /archive/%f'
+# wal_level = replica
+
+# 2. 기본 백업 수행
+pg_basebackup -D /backup/base -Ft -z
+
+# 3. 장애 발생 시 복구
+# recovery.signal 파일 생성 후 postgresql.conf에:
+# restore_command = 'cp /archive/%f %p'
+# recovery_target_time = '2024-08-15 14:30:00'
+\`\`\`
+
+### MySQL 백업
+
+#### mysqldump (논리적 백업)
+
+\`\`\`bash
+# 전체 데이터베이스
+mysqldump -u root -p mydb > backup.sql
+
+# InnoDB 일관성 보장 (--single-transaction)
+mysqldump --single-transaction -u root -p mydb > backup.sql
+
+# 모든 데이터베이스
+mysqldump --all-databases -u root -p > full_backup.sql
+
+# 특정 테이블
+mysqldump -u root -p mydb orders order_items > orders.sql
+
+# 압축 백업
+mysqldump --single-transaction mydb | gzip > backup.sql.gz
+\`\`\`
+
+#### MySQL Shell (8.0+)
+
+\`\`\`bash
+# 병렬 덤프 (mysqldump보다 훨씬 빠름)
+mysqlsh -- util dump-instance /backup/full \\
+  --threads=4
+
+# 특정 DB만
+mysqlsh -- util dump-schemas mydb \\
+  --outputUrl=/backup/mydb --threads=4
+
+# 복원
+mysqlsh -- util load-dump /backup/full \\
+  --threads=4
+\`\`\`
+
+#### MySQL Enterprise Backup / Percona XtraBackup
+
+\`\`\`bash
+# Percona XtraBackup (물리적, 핫 백업)
+xtrabackup --backup --target-dir=/backup/full
+
+# 증분 백업
+xtrabackup --backup --target-dir=/backup/inc1 \\
+  --incremental-basedir=/backup/full
+
+# 복구 준비
+xtrabackup --prepare --target-dir=/backup/full
+xtrabackup --prepare --target-dir=/backup/full \\
+  --incremental-dir=/backup/inc1
+
+# 복원
+xtrabackup --copy-back --target-dir=/backup/full
+\`\`\`
+
+#### MySQL Binlog PITR
+
+\`\`\`bash
+# Binary Log 기반 시점 복구
+mysqlbinlog --start-datetime="2024-08-15 14:00:00" \\
+            --stop-datetime="2024-08-15 14:30:00" \\
+            binlog.000042 | mysql -u root -p
+
+# GTID 기반 복구
+mysqlbinlog --include-gtids="uuid:1-100" \\
+            binlog.000042 | mysql -u root -p
+\`\`\`
+
+### 백업 전략 비교
+
+| 항목 | PostgreSQL | MySQL |
+|------|-----------|-------|
+| 논리적 백업 | pg_dump (-Fc 권장) | mysqldump (--single-transaction) |
+| 물리적 백업 | pg_basebackup | XtraBackup / MySQL Enterprise |
+| 병렬 백업 | pg_dump -Fd -j N | MySQL Shell dump-instance |
+| PITR | WAL 아카이빙 + restore_command | Binary Log + mysqlbinlog |
+| 자동화 | pgBackRest, Barman | Percona XtraBackup, mysqlbackup |`,
+          en: `## Backup & Recovery
+
+Performing backups to protect against data loss and restoring after failures is a core DBA responsibility.
+
+### Backup Types
+
+| Type | Description | Features |
+|------|-------------|----------|
+| **Logical** | Dump as SQL statements | Portable, slower |
+| **Physical** | Direct data file copy | Fast, same DBMS only |
+| **Full** | Entire DB backup | Simple recovery, large storage |
+| **Incremental** | Only changed data | Space efficient, complex recovery |
+| **Differential** | Changes since last full | Recover with Full + Diff |
+
+### PostgreSQL Backup
+
+#### pg_dump (Logical)
+
+\`\`\`bash
+# Text format (human readable)
+pg_dump -h localhost -U postgres mydb > backup.sql
+
+# Custom format (compressed, parallel restore) ← recommended
+pg_dump -Fc -h localhost -U postgres mydb > backup.custom
+
+# Directory format (parallel dump)
+pg_dump -Fd -j 4 mydb -f backup_dir/
+
+# Specific tables only
+pg_dump -t orders -t order_items mydb > orders_backup.sql
+
+# Schema only / Data only
+pg_dump --schema-only mydb > schema.sql
+pg_dump --data-only mydb > data.sql
+\`\`\`
+
+#### pg_restore
+
+\`\`\`bash
+# Restore custom format
+pg_restore -d mydb backup.custom
+
+# Parallel restore (4 processes)
+pg_restore -j 4 -d mydb backup.custom
+
+# Clean restore (drop existing objects first)
+pg_restore --clean --if-exists -d mydb backup.custom
+\`\`\`
+
+#### pg_basebackup (Physical)
+
+\`\`\`bash
+# Full cluster physical backup
+pg_basebackup -h localhost -U replicator \\
+  -D /backup/base -Ft -z -P
+
+# With WAL streaming (standalone recovery)
+pg_basebackup -D /backup/base -Ft -z \\
+  --wal-method=stream -P
+\`\`\`
+
+#### PITR (Point-In-Time Recovery)
+
+\`\`\`bash
+# 1. Enable WAL archiving in postgresql.conf
+# archive_mode = on
+# archive_command = 'cp %p /archive/%f'
+# wal_level = replica
+
+# 2. Take base backup
+pg_basebackup -D /backup/base -Ft -z
+
+# 3. On failure, recover to specific time
+# Create recovery.signal, add to postgresql.conf:
+# restore_command = 'cp /archive/%f %p'
+# recovery_target_time = '2024-08-15 14:30:00'
+\`\`\`
+
+### MySQL Backup
+
+#### mysqldump (Logical)
+
+\`\`\`bash
+# Full database with InnoDB consistency
+mysqldump --single-transaction -u root -p mydb > backup.sql
+
+# All databases
+mysqldump --all-databases -u root -p > full_backup.sql
+
+# Compressed backup
+mysqldump --single-transaction mydb | gzip > backup.sql.gz
+\`\`\`
+
+#### MySQL Shell (8.0+)
+
+\`\`\`bash
+# Parallel dump (much faster than mysqldump)
+mysqlsh -- util dump-instance /backup/full --threads=4
+
+# Restore
+mysqlsh -- util load-dump /backup/full --threads=4
+\`\`\`
+
+#### Percona XtraBackup (Physical, Hot)
+
+\`\`\`bash
+xtrabackup --backup --target-dir=/backup/full
+
+# Incremental
+xtrabackup --backup --target-dir=/backup/inc1 \\
+  --incremental-basedir=/backup/full
+
+# Prepare and restore
+xtrabackup --prepare --target-dir=/backup/full
+xtrabackup --copy-back --target-dir=/backup/full
+\`\`\`
+
+#### MySQL Binlog PITR
+
+\`\`\`bash
+mysqlbinlog --start-datetime="2024-08-15 14:00:00" \\
+            --stop-datetime="2024-08-15 14:30:00" \\
+            binlog.000042 | mysql -u root -p
+\`\`\`
+
+### Backup Strategy Comparison
+
+| Feature | PostgreSQL | MySQL |
+|---------|-----------|-------|
+| Logical | pg_dump (-Fc recommended) | mysqldump (--single-transaction) |
+| Physical | pg_basebackup | XtraBackup / MySQL Enterprise |
+| Parallel | pg_dump -Fd -j N | MySQL Shell dump-instance |
+| PITR | WAL archiving + restore_command | Binary Log + mysqlbinlog |
+| Automation | pgBackRest, Barman | Percona XtraBackup, mysqlbackup |`,
+        },
+      },
+      {
+        id: 'replication-ha',
+        title: { ko: '복제와 고가용성', en: 'Replication & High Availability' },
+        level: 'database',
+        content: {
+          ko: `## 복제와 고가용성 (Replication & HA)
+
+복제(Replication)는 데이터를 여러 서버에 동기화하여 **읽기 분산**과 **장애 대비**를 구현하는 기술입니다.
+
+### 복제 유형
+
+| 유형 | 설명 | 데이터 손실 |
+|------|------|-----------|
+| **동기식 (Synchronous)** | 커밋 전 복제본 확인 | 없음 (zero data loss) |
+| **비동기식 (Asynchronous)** | 커밋 후 나중에 복제 | 가능 (약간의 지연) |
+| **반동기식 (Semi-sync)** | 최소 1개 복제본 확인 | 거의 없음 |
+
+### PostgreSQL 복제
+
+#### Streaming Replication (물리적 복제)
+
+\`\`\`bash
+# === Primary 서버 설정 ===
+# postgresql.conf
+# wal_level = replica
+# max_wal_senders = 5
+# synchronous_standby_names = 'standby1'  # 동기식
+
+# pg_hba.conf (복제 접속 허용)
+# host replication replicator standby_ip/32 scram-sha-256
+\`\`\`
+
+\`\`\`bash
+# === Standby 서버 구성 ===
+# 1. Primary에서 기본 백업
+pg_basebackup -h primary_host -U replicator \\
+  -D /var/lib/postgresql/17/main -Fp -Xs -P -R
+
+# -R 옵션이 자동으로 standby.signal 생성 +
+# postgresql.auto.conf에 primary_conninfo 설정
+\`\`\`
+
+\`\`\`sql
+-- Primary에서 복제 상태 확인
+SELECT client_addr, state, sync_state,
+  sent_lsn, write_lsn, flush_lsn, replay_lsn,
+  pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes
+FROM pg_stat_replication;
+
+-- Standby에서 복제 지연 확인
+SELECT now() - pg_last_xact_replay_timestamp() AS replication_lag;
+\`\`\`
+
+#### Logical Replication (논리적 복제)
+
+\`\`\`sql
+-- Publisher (원본) 설정
+-- postgresql.conf: wal_level = logical
+
+-- Publication 생성
+CREATE PUBLICATION my_pub FOR TABLE orders, products;
+-- 전체 테이블 발행
+CREATE PUBLICATION all_pub FOR ALL TABLES;
+
+-- Subscriber (구독자) 설정
+CREATE SUBSCRIPTION my_sub
+  CONNECTION 'host=primary_host dbname=mydb user=replicator'
+  PUBLICATION my_pub;
+
+-- 구독 상태 확인
+SELECT * FROM pg_stat_subscription;
+\`\`\`
+
+| 항목 | 스트리밍 복제 | 논리적 복제 |
+|------|-------------|-----------|
+| 복제 단위 | 전체 클러스터 | 테이블 단위 선택 |
+| 버전 호환 | 동일 메이저 버전 | 다른 버전 가능 |
+| DDL 복제 | 자동 | 수동 적용 필요 |
+| 쓰기 가능 | Standby 읽기 전용 | Subscriber 쓰기 가능 |
+| 용도 | HA, 읽기 분산 | 부분 복제, 데이터 통합 |
+
+### MySQL 복제
+
+#### Source-Replica (비동기 복제)
+
+\`\`\`sql
+-- === Source (Primary) 설정 ===
+-- my.cnf:
+-- server-id = 1
+-- log_bin = mysql-bin
+-- binlog_format = ROW
+-- gtid_mode = ON
+-- enforce_gtid_consistency = ON
+
+-- 복제 계정 생성
+CREATE USER 'repl'@'replica_ip' IDENTIFIED BY 'password';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'replica_ip';
+\`\`\`
+
+\`\`\`sql
+-- === Replica 설정 ===
+-- my.cnf:
+-- server-id = 2
+-- relay_log = relay-bin
+-- read_only = ON
+
+-- GTID 기반 복제 시작
+CHANGE REPLICATION SOURCE TO
+  SOURCE_HOST = 'primary_host',
+  SOURCE_USER = 'repl',
+  SOURCE_PASSWORD = 'password',
+  SOURCE_AUTO_POSITION = 1;
+
+START REPLICA;
+
+-- 복제 상태 확인
+SHOW REPLICA STATUS\\G
+\`\`\`
+
+#### Group Replication (MySQL 8.0+)
+
+\`\`\`sql
+-- 멀티 소스, 자동 장애 복구
+-- 3~9개 노드로 구성
+-- Single-Primary 또는 Multi-Primary 모드
+
+-- Group Replication 시작
+SET GLOBAL group_replication_bootstrap_group = ON;
+START GROUP_REPLICATION;
+SET GLOBAL group_replication_bootstrap_group = OFF;
+
+-- 그룹 멤버 확인
+SELECT MEMBER_HOST, MEMBER_PORT, MEMBER_STATE, MEMBER_ROLE
+FROM performance_schema.replication_group_members;
+\`\`\`
+
+#### Semi-Synchronous Replication
+
+\`\`\`sql
+-- Source에서 플러그인 설치
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'semisync_source.so';
+SET GLOBAL rpl_semi_sync_source_enabled = ON;
+
+-- Replica에서 플러그인 설치
+INSTALL PLUGIN rpl_semi_sync_replica SONAME 'semisync_replica.so';
+SET GLOBAL rpl_semi_sync_replica_enabled = ON;
+\`\`\`
+
+### 고가용성 (HA) 아키텍처
+
+| 구성 | 설명 | 자동 Failover |
+|------|------|-------------|
+| **PostgreSQL + Patroni** | etcd 기반 클러스터 관리 | O |
+| **PostgreSQL + pgpool-II** | 로드밸런싱 + 커넥션 풀링 | O |
+| **MySQL InnoDB Cluster** | Group Replication + MySQL Router + Shell | O |
+| **MySQL + ProxySQL** | 쿼리 라우팅 + 로드밸런싱 | 수동/스크립트 |
+| **클라우드 관리형** | RDS Multi-AZ, Aurora, Cloud SQL | O (자동) |
+
+\`\`\`
+┌────────────┐     ┌──────────────────────────┐
+│ Application│────→│ Proxy / Load Balancer    │
+└────────────┘     │ (pgpool, ProxySQL, HAProxy)│
+                   └──────┬───────┬───────────┘
+                          │       │
+                   ┌──────▼──┐ ┌──▼────────┐
+                   │ Primary │ │ Standby(s) │
+                   │ (R/W)   │ │ (Read-Only)│
+                   └─────────┘ └────────────┘
+                         ↕ Replication
+\`\`\``,
+          en: `## Replication & High Availability (HA)
+
+Replication synchronizes data across multiple servers for **read scaling** and **fault tolerance**.
+
+### Replication Types
+
+| Type | Description | Data Loss |
+|------|-------------|-----------|
+| **Synchronous** | Confirm replica before commit | None (zero data loss) |
+| **Asynchronous** | Replicate after commit | Possible (slight lag) |
+| **Semi-synchronous** | Confirm at least 1 replica | Nearly none |
+
+### PostgreSQL Replication
+
+#### Streaming Replication (Physical)
+
+\`\`\`bash
+# === Primary server config ===
+# postgresql.conf
+# wal_level = replica
+# max_wal_senders = 5
+# synchronous_standby_names = 'standby1'  # sync mode
+\`\`\`
+
+\`\`\`bash
+# === Build Standby ===
+pg_basebackup -h primary_host -U replicator \\
+  -D /var/lib/postgresql/17/main -Fp -Xs -P -R
+# -R auto-creates standby.signal + primary_conninfo
+\`\`\`
+
+\`\`\`sql
+-- Check replication status on Primary
+SELECT client_addr, state, sync_state,
+  sent_lsn, replay_lsn,
+  pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes
+FROM pg_stat_replication;
+
+-- Check lag on Standby
+SELECT now() - pg_last_xact_replay_timestamp() AS replication_lag;
+\`\`\`
+
+#### Logical Replication
+
+\`\`\`sql
+-- Publisher: wal_level = logical
+CREATE PUBLICATION my_pub FOR TABLE orders, products;
+
+-- Subscriber
+CREATE SUBSCRIPTION my_sub
+  CONNECTION 'host=primary_host dbname=mydb user=replicator'
+  PUBLICATION my_pub;
+
+SELECT * FROM pg_stat_subscription;
+\`\`\`
+
+| Feature | Streaming | Logical |
+|---------|-----------|---------|
+| Scope | Entire cluster | Selected tables |
+| Version compat | Same major | Cross-version |
+| DDL replication | Automatic | Manual |
+| Writable | Standby read-only | Subscriber writable |
+| Use case | HA, read scaling | Partial replication, data integration |
+
+### MySQL Replication
+
+#### Source-Replica (Async)
+
+\`\`\`sql
+-- Source: server-id=1, log_bin, gtid_mode=ON
+CREATE USER 'repl'@'replica_ip' IDENTIFIED BY 'password';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'replica_ip';
+
+-- Replica: server-id=2, read_only=ON
+CHANGE REPLICATION SOURCE TO
+  SOURCE_HOST='primary_host', SOURCE_USER='repl',
+  SOURCE_PASSWORD='password', SOURCE_AUTO_POSITION=1;
+START REPLICA;
+SHOW REPLICA STATUS\\G
+\`\`\`
+
+#### Group Replication (MySQL 8.0+)
+
+\`\`\`sql
+-- Multi-source, automatic failover, 3-9 nodes
+SET GLOBAL group_replication_bootstrap_group = ON;
+START GROUP_REPLICATION;
+
+SELECT MEMBER_HOST, MEMBER_STATE, MEMBER_ROLE
+FROM performance_schema.replication_group_members;
+\`\`\`
+
+### HA Architecture
+
+| Setup | Description | Auto Failover |
+|-------|-------------|---------------|
+| **PG + Patroni** | etcd-based cluster mgmt | Yes |
+| **PG + pgpool-II** | Load balancing + connection pooling | Yes |
+| **MySQL InnoDB Cluster** | Group Replication + Router + Shell | Yes |
+| **MySQL + ProxySQL** | Query routing + load balancing | Manual/Script |
+| **Cloud Managed** | RDS Multi-AZ, Aurora, Cloud SQL | Yes (auto) |
+
+\`\`\`
+┌────────────┐     ┌──────────────────────────┐
+│ Application│────→│ Proxy / Load Balancer    │
+└────────────┘     │ (pgpool, ProxySQL, HAProxy)│
+                   └──────┬───────┬───────────┘
+                          │       │
+                   ┌──────▼──┐ ┌──▼────────┐
+                   │ Primary │ │ Standby(s) │
+                   │ (R/W)   │ │ (Read-Only)│
+                   └─────────┘ └────────────┘
+                         ↕ Replication
+\`\`\``,
+        },
+      },
+      {
+        id: 'innodb-deep-dive',
+        title: { ko: 'InnoDB 심화', en: 'InnoDB Deep Dive' },
+        level: 'database',
+        content: {
+          ko: `## InnoDB 심화 (MySQL)
+
+InnoDB는 MySQL의 기본 스토리지 엔진으로, **ACID 트랜잭션**, **행 수준 잠금**, **MVCC**, **외래키**를 지원합니다.
+
+### InnoDB 아키텍처 상세
+
+\`\`\`
+┌─────────────── InnoDB 메모리 구조 ───────────────┐
+│                                                   │
+│  ┌──────────────────────────────────────────────┐ │
+│  │            Buffer Pool (최대 80% RAM)         │ │
+│  │  ┌────────┐ ┌────────┐ ┌───────────────────┐ │ │
+│  │  │Data Page│ │Index   │ │ Change Buffer     │ │ │
+│  │  │ Cache   │ │Page    │ │ (보조인덱스 변경)  │ │ │
+│  │  └────────┘ └────────┘ └───────────────────┘ │ │
+│  │  ┌────────────────┐ ┌──────────────────────┐ │ │
+│  │  │Adaptive Hash   │ │ Lock Info            │ │ │
+│  │  │Index (AHI)     │ │                      │ │ │
+│  │  └────────────────┘ └──────────────────────┘ │ │
+│  └──────────────────────────────────────────────┘ │
+│  ┌──────────────┐  ┌──────────────┐              │
+│  │ Log Buffer   │  │ Double Write │              │
+│  │ (Redo Log)   │  │ Buffer       │              │
+│  └──────────────┘  └──────────────┘              │
+└───────────────────────────────────────────────────┘
+
+┌─────────────── InnoDB 디스크 구조 ───────────────┐
+│  ┌──────────┐ ┌───────────┐ ┌──────────────────┐ │
+│  │System    │ │Per-Table  │ │ Redo Log Files   │ │
+│  │Tablespace│ │Tablespace │ │ (ib_logfile0/1)  │ │
+│  │(ibdata1) │ │(.ibd)     │ │                  │ │
+│  └──────────┘ └───────────┘ └──────────────────┘ │
+│  ┌──────────────┐ ┌───────────────────────────┐  │
+│  │Undo          │ │ Doublewrite Files         │  │
+│  │Tablespace    │ │ (장애 시 부분 쓰기 방지)   │  │
+│  └──────────────┘ └───────────────────────────┘  │
+└───────────────────────────────────────────────────┘
+\`\`\`
+
+### 클러스터드 인덱스 (Clustered Index)
+
+InnoDB는 **PK 기준으로 데이터를 물리적으로 정렬**하여 저장합니다.
+
+\`\`\`sql
+-- 테이블 = 클러스터드 인덱스 (PK 순서 저장)
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,  -- 클러스터드 인덱스
+  customer_id INT,
+  order_date TIMESTAMP,
+  INDEX idx_customer (customer_id),   -- 보조 인덱스 → PK 참조
+  INDEX idx_date (order_date)
+);
+
+-- 보조 인덱스 구조: [order_date 값] → [PK(id) 값]
+-- 보조 인덱스 조회 시 PK로 다시 조회 (Bookmark Lookup)
+\`\`\`
+
+| 항목 | 클러스터드 인덱스 | 보조 인덱스 |
+|------|-----------------|-----------|
+| 저장 구조 | 리프 노드 = 실제 데이터 행 | 리프 노드 = PK 값 |
+| 정렬 | PK 순서로 물리 정렬 | 인덱스 키 순서 |
+| 개수 | 테이블당 1개 (PK) | 여러 개 가능 |
+| 범위 검색 | 매우 빠름 (연속 읽기) | PK 참조 필요 |
+
+### Buffer Pool 관리
+
+\`\`\`sql
+-- Buffer Pool 크기 설정 (동적 변경 가능)
+SET GLOBAL innodb_buffer_pool_size = 4 * 1024 * 1024 * 1024; -- 4GB
+
+-- Buffer Pool 상태 모니터링
+SHOW STATUS LIKE 'Innodb_buffer_pool%';
+
+-- 주요 메트릭
+-- Innodb_buffer_pool_read_requests  : 논리적 읽기 (캐시 히트 포함)
+-- Innodb_buffer_pool_reads          : 디스크 읽기 (캐시 미스)
+-- 히트율 = 1 - (reads / read_requests) → 99% 이상 권장
+
+-- Buffer Pool 내용 확인
+SELECT TABLE_NAME,
+  COUNT(*) AS pages,
+  SUM(IF(IS_OLD='YES', 1, 0)) AS old_pages
+FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE TABLE_NAME IS NOT NULL
+GROUP BY TABLE_NAME
+ORDER BY pages DESC LIMIT 10;
+\`\`\`
+
+### Redo Log & Undo Log
+
+\`\`\`sql
+-- Redo Log: 커밋된 트랜잭션의 장애 복구 보장
+SHOW VARIABLES LIKE 'innodb_redo_log_capacity'; -- 8.0.30+
+SHOW STATUS LIKE 'Innodb_redo_log%';
+
+-- Undo Log: 트랜잭션 롤백 + MVCC 읽기 일관성
+SHOW VARIABLES LIKE 'innodb_undo%';
+-- innodb_undo_tablespaces: Undo 테이블스페이스 수
+-- innodb_max_undo_log_size: 자동 truncate 크기
+\`\`\`
+
+### 잠금 (Locking) 상세
+
+\`\`\`sql
+-- InnoDB 잠금 유형
+-- Record Lock: 인덱스 레코드에 대한 잠금
+-- Gap Lock: 인덱스 레코드 사이 간격 잠금 (Phantom 방지)
+-- Next-Key Lock: Record + Gap 결합 (기본 동작)
+
+-- 현재 잠금 상태 확인
+SELECT * FROM performance_schema.data_locks;
+
+-- 잠금 대기 확인
+SELECT * FROM performance_schema.data_lock_waits;
+
+-- 데드락 최근 정보
+SHOW ENGINE INNODB STATUS\\G
+-- LATEST DETECTED DEADLOCK 섹션 확인
+
+-- 트랜잭션 격리 수준별 잠금
+-- READ UNCOMMITTED: 잠금 없음 (Dirty Read 가능)
+-- READ COMMITTED: Record Lock만 (Oracle 기본)
+-- REPEATABLE READ: Next-Key Lock (MySQL 기본)
+-- SERIALIZABLE: 모든 SELECT에 공유 잠금
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+\`\`\`
+
+### InnoDB 주요 설정
+
+\`\`\`sql
+-- 성능 관련 핵심 변수
+SHOW VARIABLES LIKE 'innodb_buffer_pool_size';     -- RAM의 70-80%
+SHOW VARIABLES LIKE 'innodb_log_file_size';        -- Redo Log 크기
+SHOW VARIABLES LIKE 'innodb_flush_log_at_trx_commit'; -- 1=안전, 2=빠름
+SHOW VARIABLES LIKE 'innodb_flush_method';         -- O_DIRECT 권장
+SHOW VARIABLES LIKE 'innodb_io_capacity';          -- IOPS 설정
+SHOW VARIABLES LIKE 'innodb_read_io_threads';      -- 읽기 스레드
+SHOW VARIABLES LIKE 'innodb_write_io_threads';     -- 쓰기 스레드
+\`\`\``,
+          en: `## InnoDB Deep Dive (MySQL)
+
+InnoDB is MySQL's default storage engine, supporting **ACID transactions**, **row-level locking**, **MVCC**, and **foreign keys**.
+
+### InnoDB Architecture Detail
+
+\`\`\`
+┌─────────────── InnoDB Memory ─────────────────┐
+│  ┌──────────────────────────────────────────┐  │
+│  │         Buffer Pool (up to 80% RAM)      │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ │  │
+│  │  │Data Pages│ │Idx Pages │ │Change Buf│ │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ │  │
+│  │  ┌──────────────────┐ ┌──────────────┐  │  │
+│  │  │Adaptive Hash Idx │ │Lock Info     │  │  │
+│  │  └──────────────────┘ └──────────────┘  │  │
+│  └──────────────────────────────────────────┘  │
+│  ┌────────────┐  ┌──────────────┐              │
+│  │ Log Buffer │  │ Double Write │              │
+│  └────────────┘  └──────────────┘              │
+└────────────────────────────────────────────────┘
+
+┌─────────────── InnoDB Disk ───────────────────┐
+│  ┌──────────┐ ┌───────────┐ ┌──────────────┐  │
+│  │System    │ │Per-Table  │ │Redo Log Files│  │
+│  │Tablespace│ │(.ibd)     │ │              │  │
+│  └──────────┘ └───────────┘ └──────────────┘  │
+│  ┌──────────────┐ ┌───────────────────────┐   │
+│  │Undo          │ │Doublewrite Files      │   │
+│  │Tablespace    │ │(partial write protect) │   │
+│  └──────────────┘ └───────────────────────┘   │
+└────────────────────────────────────────────────┘
+\`\`\`
+
+### Clustered Index
+
+InnoDB **physically sorts data by the PK**.
+
+\`\`\`sql
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,  -- clustered index
+  customer_id INT,
+  order_date TIMESTAMP,
+  INDEX idx_customer (customer_id),   -- secondary → references PK
+  INDEX idx_date (order_date)
+);
+-- Secondary index leaf: [key value] → [PK value]
+-- Secondary lookup requires PK lookup (Bookmark Lookup)
+\`\`\`
+
+| Aspect | Clustered Index | Secondary Index |
+|--------|----------------|-----------------|
+| Leaf node | Actual data row | PK value |
+| Sorting | Physical PK order | Index key order |
+| Count | 1 per table (PK) | Multiple allowed |
+| Range scan | Very fast (sequential) | Needs PK lookup |
+
+### Buffer Pool Management
+
+\`\`\`sql
+SET GLOBAL innodb_buffer_pool_size = 4 * 1024 * 1024 * 1024; -- 4GB
+
+SHOW STATUS LIKE 'Innodb_buffer_pool%';
+-- Hit ratio = 1 - (reads / read_requests) → target 99%+
+
+SELECT TABLE_NAME, COUNT(*) AS pages
+FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE TABLE_NAME IS NOT NULL
+GROUP BY TABLE_NAME ORDER BY pages DESC LIMIT 10;
+\`\`\`
+
+### Redo Log & Undo Log
+
+\`\`\`sql
+-- Redo: crash recovery for committed txns
+SHOW VARIABLES LIKE 'innodb_redo_log_capacity';
+-- Undo: rollback + MVCC read consistency
+SHOW VARIABLES LIKE 'innodb_undo%';
+\`\`\`
+
+### Locking Detail
+
+\`\`\`sql
+-- Record Lock: on index record
+-- Gap Lock: between index records (prevents phantoms)
+-- Next-Key Lock: Record + Gap (default in REPEATABLE READ)
+
+SELECT * FROM performance_schema.data_locks;
+SELECT * FROM performance_schema.data_lock_waits;
+SHOW ENGINE INNODB STATUS\\G  -- LATEST DETECTED DEADLOCK
+
+-- Isolation levels and locking
+-- READ UNCOMMITTED: no locks
+-- READ COMMITTED: record locks only
+-- REPEATABLE READ: next-key locks (MySQL default)
+-- SERIALIZABLE: shared locks on all SELECTs
+\`\`\`
+
+### Key InnoDB Settings
+
+\`\`\`sql
+SHOW VARIABLES LIKE 'innodb_buffer_pool_size';        -- 70-80% RAM
+SHOW VARIABLES LIKE 'innodb_flush_log_at_trx_commit'; -- 1=safe, 2=fast
+SHOW VARIABLES LIKE 'innodb_flush_method';            -- O_DIRECT recommended
+SHOW VARIABLES LIKE 'innodb_io_capacity';             -- IOPS setting
+\`\`\``,
+        },
+      },
+      {
+        id: 'postgresql-internals',
+        title: { ko: 'PostgreSQL 심화', en: 'PostgreSQL Internals' },
+        level: 'database',
+        content: {
+          ko: `## PostgreSQL 심화
+
+PostgreSQL은 **MVCC 기반 단일 스토리지 엔진**을 사용하며, 확장성이 뛰어난 오픈소스 RDBMS입니다.
+
+### 프로세스 아키텍처
+
+\`\`\`
+┌──────── PostgreSQL 프로세스 구조 ────────┐
+│                                          │
+│  Postmaster (메인 프로세스)              │
+│  ├── Backend Process (클라이언트별 1개)  │
+│  ├── Background Writer (더티 페이지 기록)│
+│  ├── WAL Writer (WAL 버퍼 → 디스크)     │
+│  ├── Checkpointer (체크포인트 수행)      │
+│  ├── Autovacuum Launcher                │
+│  │   └── Autovacuum Worker(s)           │
+│  ├── Stats Collector (통계 수집)         │
+│  ├── Logical Replication Launcher       │
+│  └── WAL Sender (스트리밍 복제)          │
+│                                          │
+└──────────────────────────────────────────┘
+\`\`\`
+
+### MVCC (Multi-Version Concurrency Control)
+
+PostgreSQL은 **행의 여러 버전**을 유지하여 읽기와 쓰기가 서로 차단하지 않습니다.
+
+\`\`\`sql
+-- 각 행에는 숨겨진 시스템 컬럼이 있음
+-- xmin: 행을 생성한 트랜잭션 ID
+-- xmax: 행을 삭제/갱신한 트랜잭션 ID (0이면 유효)
+-- ctid: 물리적 위치 (page, offset)
+
+SELECT xmin, xmax, ctid, * FROM orders LIMIT 5;
+
+-- MVCC 동작 예시:
+-- 1. TX1: UPDATE orders SET status='shipped' WHERE id=1;
+--    → 기존 행의 xmax = TX1_ID (old version)
+--    → 새 행의 xmin = TX1_ID (new version)
+-- 2. TX2 (TX1 커밋 전): SELECT * FROM orders WHERE id=1;
+--    → xmax가 아직 커밋되지 않았으므로 old version 읽음
+\`\`\`
+
+### VACUUM 상세
+
+MVCC로 인해 **Dead Tuple**(이전 버전 행)이 쌓이므로 VACUUM으로 정리합니다.
+
+\`\`\`sql
+-- Dead Tuple 확인
+SELECT schemaname, relname,
+  n_live_tup, n_dead_tup,
+  ROUND(n_dead_tup::numeric / NULLIF(n_live_tup + n_dead_tup, 0) * 100, 2) AS dead_pct,
+  last_vacuum, last_autovacuum
+FROM pg_stat_user_tables
+WHERE n_dead_tup > 0
+ORDER BY n_dead_tup DESC;
+
+-- VACUUM 유형
+VACUUM orders;                    -- 일반: 공간 재사용 가능 표시
+VACUUM FULL orders;               -- FULL: 테이블 재작성 (배타적 잠금!)
+VACUUM ANALYZE orders;            -- + 통계 갱신
+VACUUM (VERBOSE, PARALLEL 4) orders; -- 병렬 VACUUM (PG 13+)
+\`\`\`
+
+\`\`\`sql
+-- Autovacuum 설정 확인
+SHOW autovacuum;                          -- on/off
+SHOW autovacuum_vacuum_threshold;         -- 50 (최소 dead tuple 수)
+SHOW autovacuum_vacuum_scale_factor;      -- 0.2 (20% dead ratio)
+-- 실행 조건: dead tuples > threshold + scale_factor * n_live_tup
+
+-- 테이블별 Autovacuum 커스텀 설정
+ALTER TABLE orders SET (
+  autovacuum_vacuum_scale_factor = 0.05,  -- 5%로 더 자주
+  autovacuum_analyze_scale_factor = 0.02
+);
+\`\`\`
+
+### 인덱스 유형
+
+| 인덱스 | 용도 | 예시 |
+|--------|------|------|
+| **B-tree** | 범위/등호 검색 (기본) | WHERE price > 1000 |
+| **Hash** | 등호 검색만 | WHERE id = 42 |
+| **GIN** | 배열, JSONB, 전문검색 | WHERE tags @> '{sql}' |
+| **GiST** | 지리/범위/근접 검색 | WHERE point <-> '(0,0)' |
+| **BRIN** | 물리적 순서 상관 큰 컬럼 | WHERE created_at > '2024-01-01' |
+| **SP-GiST** | 비균형 트리 구조 | IP 범위, 전화번호 |
+
+\`\`\`sql
+-- B-tree (기본)
+CREATE INDEX idx_orders_date ON orders(order_date);
+
+-- 복합 인덱스
+CREATE INDEX idx_orders_status_date ON orders(status, order_date);
+
+-- 부분 인덱스 (조건부)
+CREATE INDEX idx_active_orders ON orders(order_date)
+  WHERE status IN ('pending', 'processing');
+
+-- GIN (JSONB)
+CREATE INDEX idx_products_meta ON products USING GIN (metadata jsonb_path_ops);
+
+-- BRIN (시계열 데이터에 효과적)
+CREATE INDEX idx_orders_date_brin ON orders USING BRIN (order_date);
+
+-- 표현식 인덱스
+CREATE INDEX idx_customers_lower_email ON customers (LOWER(email));
+
+-- 커버링 인덱스 (INCLUDE)
+CREATE INDEX idx_orders_cover ON orders(customer_id)
+  INCLUDE (order_date, total_amount);
+\`\`\`
+
+### 쿼리 실행 계획 분석
+
+\`\`\`sql
+-- 기본 실행 계획
+EXPLAIN SELECT * FROM orders WHERE customer_id = 1;
+
+-- 실제 실행 통계 포함
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+  SELECT c.name, COUNT(o.id) AS order_count
+  FROM customers c
+  JOIN orders o ON c.id = o.customer_id
+  GROUP BY c.name;
+
+-- 주요 확인 포인트:
+-- Seq Scan vs Index Scan (순차 탐색 vs 인덱스)
+-- Nested Loop vs Hash Join vs Merge Join
+-- actual time vs estimated (예측 정확도)
+-- Buffers: shared hit (캐시) vs read (디스크)
+\`\`\`
+
+### PostgreSQL 고유 기능
+
+\`\`\`sql
+-- 테이블 상속
+CREATE TABLE orders_2024 () INHERITS (orders);
+
+-- 도메인 타입
+CREATE DOMAIN email_type AS VARCHAR(150)
+  CHECK (VALUE ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z]{2,}$');
+
+-- LISTEN / NOTIFY (실시간 이벤트)
+LISTEN order_events;
+NOTIFY order_events, '{"order_id": 42, "status": "shipped"}';
+
+-- Advisory Lock (애플리케이션 레벨 잠금)
+SELECT pg_advisory_lock(42);       -- 잠금 획득
+SELECT pg_advisory_unlock(42);     -- 잠금 해제
+
+-- RETURNING (INSERT/UPDATE/DELETE 결과 반환)
+INSERT INTO orders (customer_id, order_date, status, total_amount)
+VALUES (1, NOW(), 'pending', 50000)
+RETURNING id, order_date;
+
+UPDATE orders SET status = 'shipped'
+WHERE id = 1 RETURNING *;
+
+-- Generate Series (데이터 생성)
+SELECT generate_series(1, 12) AS month,
+       date_trunc('month', make_date(2024, generate_series(1,12), 1)) AS month_start;
+\`\`\`
+
+### 주요 시스템 설정
+
+\`\`\`sql
+-- 메모리
+SHOW shared_buffers;             -- RAM의 25% (캐시)
+SHOW effective_cache_size;       -- RAM의 50-75% (OS 캐시 포함)
+SHOW work_mem;                   -- 쿼리별 정렬/해시 (4MB~256MB)
+SHOW maintenance_work_mem;       -- VACUUM/인덱스 생성 (256MB~1GB)
+
+-- WAL
+SHOW wal_level;                  -- minimal/replica/logical
+SHOW max_wal_size;               -- 체크포인트 간 WAL 최대 크기
+SHOW min_wal_size;               -- WAL 최소 유지 크기
+
+-- 연결
+SHOW max_connections;            -- 기본 100
+SHOW superuser_reserved_connections; -- 슈퍼유저 예약 (기본 3)
+
+-- 쿼리 최적화
+SHOW random_page_cost;           -- SSD: 1.1, HDD: 4.0
+SHOW effective_io_concurrency;   -- SSD: 200, HDD: 2
+\`\`\``,
+          en: `## PostgreSQL Internals
+
+PostgreSQL uses a **single MVCC-based storage engine** and is a highly extensible open-source RDBMS.
+
+### Process Architecture
+
+\`\`\`
+┌──────── PostgreSQL Process Structure ────┐
+│                                          │
+│  Postmaster (main process)               │
+│  ├── Backend Process (1 per client)      │
+│  ├── Background Writer (dirty pages)     │
+│  ├── WAL Writer (WAL buffer → disk)      │
+│  ├── Checkpointer                        │
+│  ├── Autovacuum Launcher                 │
+│  │   └── Autovacuum Worker(s)            │
+│  ├── Stats Collector                     │
+│  ├── Logical Replication Launcher        │
+│  └── WAL Sender (streaming replication)  │
+│                                          │
+└──────────────────────────────────────────┘
+\`\`\`
+
+### MVCC (Multi-Version Concurrency Control)
+
+PostgreSQL maintains **multiple row versions** so reads and writes don't block each other.
+
+\`\`\`sql
+-- Each row has hidden system columns
+-- xmin: creating transaction ID
+-- xmax: deleting/updating transaction ID (0 = valid)
+-- ctid: physical location (page, offset)
+SELECT xmin, xmax, ctid, * FROM orders LIMIT 5;
+\`\`\`
+
+### VACUUM Detail
+
+MVCC accumulates **Dead Tuples** (old row versions); VACUUM reclaims them.
+
+\`\`\`sql
+SELECT schemaname, relname,
+  n_live_tup, n_dead_tup,
+  ROUND(n_dead_tup::numeric / NULLIF(n_live_tup + n_dead_tup, 0) * 100, 2) AS dead_pct,
+  last_vacuum, last_autovacuum
+FROM pg_stat_user_tables WHERE n_dead_tup > 0 ORDER BY n_dead_tup DESC;
+
+VACUUM orders;                        -- standard
+VACUUM FULL orders;                   -- rewrite (exclusive lock!)
+VACUUM ANALYZE orders;                -- + update stats
+VACUUM (VERBOSE, PARALLEL 4) orders;  -- parallel (PG 13+)
+\`\`\`
+
+\`\`\`sql
+-- Autovacuum tuning
+SHOW autovacuum_vacuum_threshold;      -- 50
+SHOW autovacuum_vacuum_scale_factor;   -- 0.2 (20%)
+-- Triggers when: dead > threshold + scale_factor * live
+
+ALTER TABLE orders SET (
+  autovacuum_vacuum_scale_factor = 0.05
+);
+\`\`\`
+
+### Index Types
+
+| Index | Use Case | Example |
+|-------|----------|---------|
+| **B-tree** | Range/equality (default) | price > 1000 |
+| **Hash** | Equality only | id = 42 |
+| **GIN** | Arrays, JSONB, full-text | tags @> '{sql}' |
+| **GiST** | Geometry, range, proximity | point <-> '(0,0)' |
+| **BRIN** | Physically ordered columns | created_at ranges |
+| **SP-GiST** | Unbalanced tree structures | IP ranges |
+
+\`\`\`sql
+CREATE INDEX idx_orders_date ON orders(order_date);
+
+-- Partial index
+CREATE INDEX idx_active_orders ON orders(order_date)
+  WHERE status IN ('pending', 'processing');
+
+-- GIN for JSONB
+CREATE INDEX idx_meta ON products USING GIN (metadata jsonb_path_ops);
+
+-- BRIN for time-series
+CREATE INDEX idx_date_brin ON orders USING BRIN (order_date);
+
+-- Covering index (INCLUDE)
+CREATE INDEX idx_cover ON orders(customer_id)
+  INCLUDE (order_date, total_amount);
+
+-- Expression index
+CREATE INDEX idx_lower_email ON customers (LOWER(email));
+\`\`\`
+
+### Query Plan Analysis
+
+\`\`\`sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+  SELECT c.name, COUNT(o.id) AS order_count
+  FROM customers c
+  JOIN orders o ON c.id = o.customer_id
+  GROUP BY c.name;
+
+-- Key checks:
+-- Seq Scan vs Index Scan
+-- Nested Loop vs Hash Join vs Merge Join
+-- actual time vs estimated
+-- Buffers: shared hit (cache) vs read (disk)
+\`\`\`
+
+### PostgreSQL-Specific Features
+
+\`\`\`sql
+-- Table inheritance
+CREATE TABLE orders_2024 () INHERITS (orders);
+
+-- Domain types
+CREATE DOMAIN email_type AS VARCHAR(150)
+  CHECK (VALUE ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z]{2,}$');
+
+-- LISTEN / NOTIFY (real-time events)
+LISTEN order_events;
+NOTIFY order_events, '{"order_id": 42, "status": "shipped"}';
+
+-- Advisory Lock (application-level locking)
+SELECT pg_advisory_lock(42);
+SELECT pg_advisory_unlock(42);
+
+-- RETURNING clause
+INSERT INTO orders (customer_id, order_date, status, total_amount)
+VALUES (1, NOW(), 'pending', 50000) RETURNING id, order_date;
+
+-- Generate Series
+SELECT generate_series(1, 12) AS month;
+\`\`\`
+
+### Key System Settings
+
+\`\`\`sql
+SHOW shared_buffers;           -- 25% RAM (cache)
+SHOW effective_cache_size;     -- 50-75% RAM (incl OS cache)
+SHOW work_mem;                 -- per-query sort/hash (4MB-256MB)
+SHOW maintenance_work_mem;     -- VACUUM/index build (256MB-1GB)
+SHOW wal_level;                -- minimal/replica/logical
+SHOW random_page_cost;         -- SSD: 1.1, HDD: 4.0
+SHOW effective_io_concurrency; -- SSD: 200, HDD: 2
+\`\`\``,
+        },
+      },
     ],
   },
 ];

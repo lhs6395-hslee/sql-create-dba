@@ -1975,6 +1975,426 @@ export function DbEngineDiagram({ locale }: DiagramProps) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Backup & Recovery — Backup Types
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function BackupRecoveryDiagram({ locale }: DiagramProps) {
+  const [activeType, setActiveType] = useState<number | null>(null);
+
+  const types = [
+    {
+      name: { ko: '논리적 백업', en: 'Logical Backup' },
+      icon: '📝',
+      color: { bg: 'bg-sky-500/10', border: 'border-sky-500/30', header: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400' },
+      tools: { pg: 'pg_dump', mysql: 'mysqldump' },
+      pros: { ko: '이식성 높음, 부분 복원 가능', en: 'Portable, partial restore possible' },
+      cons: { ko: '느림, 큰 DB에 비효율', en: 'Slow, inefficient for large DBs' },
+      desc: { ko: 'SQL 문 형태로 스키마와 데이터를 덤프합니다. 다른 DBMS 버전이나 플랫폼으로 이관 시 유용합니다.', en: 'Dumps schema and data as SQL statements. Useful for cross-version or cross-platform migration.' },
+    },
+    {
+      name: { ko: '물리적 백업', en: 'Physical Backup' },
+      icon: '💾',
+      color: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', header: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
+      tools: { pg: 'pg_basebackup', mysql: 'XtraBackup' },
+      pros: { ko: '빠름, 전체 클러스터 복원', en: 'Fast, full cluster restore' },
+      cons: { ko: '동일 DBMS/버전만, 부분 복원 어려움', en: 'Same DBMS/version only, hard to partial restore' },
+      desc: { ko: '데이터 파일을 직접 복사합니다. 대용량 DB에서 빠르고 PITR(시점 복구)의 기반이 됩니다.', en: 'Direct copy of data files. Fast for large DBs and serves as the base for PITR.' },
+    },
+    {
+      name: { ko: 'PITR', en: 'PITR' },
+      icon: '⏱️',
+      color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+      tools: { pg: 'WAL Archive', mysql: 'Binary Log' },
+      pros: { ko: '특정 시점 복구, 세밀한 제어', en: 'Point-in-time recovery, fine control' },
+      cons: { ko: 'WAL/Binlog 보관 필요, 설정 복잡', en: 'WAL/Binlog retention needed, complex setup' },
+      desc: { ko: '물리적 백업 + WAL/Binlog를 조합하여 장애 직전이나 특정 시각으로 복구합니다.', en: 'Combines physical backup + WAL/Binlog to recover to just before failure or a specific time.' },
+    },
+    {
+      name: { ko: '자동화 도구', en: 'Automation Tools' },
+      icon: '🤖',
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+      tools: { pg: 'pgBackRest / Barman', mysql: 'MySQL Enterprise / mysqlsh' },
+      pros: { ko: '스케줄링, 증분, 검증 자동화', en: 'Scheduling, incremental, verification' },
+      cons: { ko: '추가 설치/설정 필요', en: 'Additional setup required' },
+      desc: { ko: '전체/증분/차등 백업 스케줄링, 백업 검증, 보존 정책을 자동 관리합니다.', en: 'Automates full/incremental/differential scheduling, backup verification, and retention policies.' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-amber-500 text-white text-xs font-bold">
+          BK
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '백업 전략 비교' : 'Backup Strategy Comparison'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 백업 유형을 클릭하여 비교하세요' : 'Click each backup type to compare'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {types.map((t, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveType(activeType === i ? null : i)}
+            className={`rounded-lg border text-left transition-all ${t.color.border} ${t.color.bg} ${
+              activeType === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className={`${t.color.header} px-2 py-1.5 rounded-t-[7px] text-center`}>
+              <span className="text-sm">{t.icon}</span>
+            </div>
+            <div className="p-2 text-center">
+              <p className={`text-[10px] font-bold ${t.color.text}`}>{t.name[locale]}</p>
+              <div className="mt-1.5 space-y-0.5 text-[8px] font-mono text-muted-foreground">
+                <p>PG: {t.tools.pg}</p>
+                <p>MY: {t.tools.mysql}</p>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeType !== null && (
+        <div className={`mt-3 rounded-lg border ${types[activeType].color.border} ${types[activeType].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed mb-2">{types[activeType].desc[locale]}</p>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="rounded-md bg-emerald-500/10 p-2">
+              <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mb-0.5">{locale === 'ko' ? '장점' : 'Pros'}</p>
+              <p className="text-[10px]">{types[activeType].pros[locale]}</p>
+            </div>
+            <div className="rounded-md bg-rose-500/10 p-2">
+              <p className="text-[9px] font-bold text-rose-600 dark:text-rose-400 mb-0.5">{locale === 'ko' ? '단점' : 'Cons'}</p>
+              <p className="text-[10px]">{types[activeType].cons[locale]}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '3-2-1 백업 규칙: 최소 3벌, 2종류 이상의 매체, 1벌은 오프사이트에 보관하세요.'
+            : '3-2-1 backup rule: keep at least 3 copies, on 2 different media, with 1 offsite.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Replication & HA — Architecture
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function ReplicationHADiagram({ locale }: DiagramProps) {
+  const [activeMode, setActiveMode] = useState<number | null>(null);
+
+  const modes = [
+    {
+      name: { ko: '스트리밍 복제', en: 'Streaming Replication' },
+      scope: 'PostgreSQL',
+      color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500' },
+      type: { ko: '물리적 / 비동기·동기', en: 'Physical / Async or Sync' },
+      desc: { ko: 'WAL 레코드를 Standby에 전송. 전체 클러스터 단위 복제. HA와 읽기 분산에 활용합니다.', en: 'Sends WAL records to standby. Cluster-wide replication. Used for HA and read scaling.' },
+    },
+    {
+      name: { ko: '논리적 복제', en: 'Logical Replication' },
+      scope: 'PostgreSQL',
+      color: { bg: 'bg-teal-500/10', border: 'border-teal-500/30', header: 'bg-teal-500' },
+      type: { ko: '논리적 / Publication-Subscription', en: 'Logical / Pub-Sub' },
+      desc: { ko: '테이블 단위 선택 복제. 다른 PG 버전 간 가능. Subscriber에서 쓰기도 가능합니다.', en: 'Selective table replication. Cross-version support. Subscriber can write.' },
+    },
+    {
+      name: { ko: 'Source-Replica', en: 'Source-Replica' },
+      scope: 'MySQL',
+      color: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', header: 'bg-orange-500' },
+      type: { ko: 'Binlog 기반 / 비동기·반동기', en: 'Binlog-based / Async or Semi-sync' },
+      desc: { ko: 'Binary Log를 Replica에 전송. GTID로 위치 관리. 읽기 분산과 백업 서버로 활용합니다.', en: 'Sends binary logs to replica. Position managed by GTID. Used for read scaling and backup.' },
+    },
+    {
+      name: { ko: 'Group Replication', en: 'Group Replication' },
+      scope: 'MySQL 8.0+',
+      color: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', header: 'bg-rose-500' },
+      type: { ko: '멀티소스 / 합의 기반', en: 'Multi-source / Consensus' },
+      desc: { ko: '3~9 노드 클러스터. Paxos 합의로 자동 장애 복구. Single-Primary 또는 Multi-Primary 모드를 지원합니다.', en: '3-9 node cluster. Paxos consensus for auto failover. Supports Single or Multi-Primary mode.' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-orange-500 text-white text-xs font-bold">
+          HA
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">
+            {locale === 'ko' ? '복제 방식 비교' : 'Replication Modes'}
+          </h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 복제 방식을 클릭하여 비교하세요' : 'Click each replication mode to compare'}
+          </p>
+        </div>
+      </div>
+
+      {/* HA Topology */}
+      <div className="mb-4 flex items-center justify-center gap-4 text-[10px]">
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-center">
+          <p className="font-bold text-blue-600 dark:text-blue-400">Primary</p>
+          <p className="text-muted-foreground">R/W</p>
+        </div>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">← Replication →</span>
+          <span className="text-[8px] text-muted-foreground">(WAL / Binlog)</span>
+        </div>
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center">
+          <p className="font-bold text-emerald-600 dark:text-emerald-400">Standby / Replica</p>
+          <p className="text-muted-foreground">Read-Only</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {modes.map((m, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveMode(activeMode === i ? null : i)}
+            className={`rounded-lg border text-left transition-all ${m.color.border} ${m.color.bg} ${
+              activeMode === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className={`${m.color.header} px-2 py-1 rounded-t-[7px] flex items-center justify-between`}>
+              <span className="text-white text-[10px] font-bold">{m.name[locale]}</span>
+              <span className="text-white/70 text-[8px]">{m.scope}</span>
+            </div>
+            <div className="p-2">
+              <p className="text-[9px] text-muted-foreground">{m.type[locale]}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeMode !== null && (
+        <div className={`mt-3 rounded-lg border ${modes[activeMode].color.border} ${modes[activeMode].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{modes[activeMode].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? '클라우드에서는 RDS Multi-AZ, Aurora, Cloud SQL 등이 자동 HA를 제공합니다. 온프레미스에서는 Patroni(PG)나 InnoDB Cluster(MySQL)를 권장합니다.'
+            : 'In cloud, RDS Multi-AZ, Aurora, Cloud SQL provide automatic HA. On-premise, use Patroni (PG) or InnoDB Cluster (MySQL).'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// InnoDB Deep Dive — Internal Layers
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function InnoDBDiagram({ locale }: DiagramProps) {
+  const [activeLayer, setActiveLayer] = useState<number | null>(null);
+
+  const layers = [
+    {
+      name: { ko: 'Buffer Pool', en: 'Buffer Pool' },
+      icon: '🧠',
+      color: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', header: 'bg-orange-500' },
+      items: ['Data Pages', 'Index Pages', 'Change Buffer', 'Adaptive Hash Index'],
+      size: { ko: 'RAM의 70~80%', en: '70-80% of RAM' },
+      desc: { ko: 'InnoDB의 핵심 캐시. 디스크 I/O를 최소화하여 성능을 좌우합니다. LRU 알고리즘으로 관리하며, 히트율 99% 이상이 목표입니다.', en: 'InnoDB core cache. Minimizes disk I/O and determines performance. Managed by LRU, target 99%+ hit rate.' },
+    },
+    {
+      name: { ko: 'Redo & Undo Log', en: 'Redo & Undo Log' },
+      icon: '📋',
+      color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500' },
+      items: ['Redo Log (WAL)', 'Undo Log (MVCC)', 'Log Buffer'],
+      size: { ko: 'Redo: 수 GB / Undo: 자동 관리', en: 'Redo: several GB / Undo: auto-managed' },
+      desc: { ko: 'Redo Log: 커밋된 트랜잭션의 장애 복구. Undo Log: 롤백 + MVCC 읽기 일관성을 제공합니다.', en: 'Redo Log: crash recovery for committed txns. Undo Log: rollback + MVCC read consistency.' },
+    },
+    {
+      name: { ko: '클러스터드 인덱스', en: 'Clustered Index' },
+      icon: '🌳',
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500' },
+      items: ['PK = Physical Order', 'Secondary → PK Lookup', 'Leaf = Data Row'],
+      size: { ko: '테이블당 1개 (PK)', en: '1 per table (PK)' },
+      desc: { ko: 'InnoDB는 PK 기준으로 데이터를 물리적으로 정렬합니다. 보조 인덱스는 PK 값을 저장하므로, 보조 인덱스 조회 시 PK 재조회가 필요합니다.', en: 'InnoDB physically sorts data by PK. Secondary indexes store PK values, requiring a PK lookup on secondary index queries.' },
+    },
+    {
+      name: { ko: '잠금 (Locking)', en: 'Locking' },
+      icon: '🔒',
+      color: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', header: 'bg-rose-500' },
+      items: ['Record Lock', 'Gap Lock', 'Next-Key Lock', 'Intention Lock'],
+      size: { ko: '격리 수준에 따라 동작', en: 'Varies by isolation level' },
+      desc: { ko: 'Record Lock: 레코드 잠금. Gap Lock: 간격 잠금(Phantom 방지). Next-Key Lock: 둘의 결합(REPEATABLE READ 기본).', en: 'Record Lock: row lock. Gap Lock: gap between records (prevents phantoms). Next-Key: combined (default in REPEATABLE READ).' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-rose-500 text-white text-[9px] font-bold">
+          IDB
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">InnoDB {locale === 'ko' ? '내부 구조' : 'Internal Architecture'}</h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 레이어를 클릭하여 상세 정보 확인' : 'Click each layer for details'}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {layers.map((layer, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveLayer(activeLayer === i ? null : i)}
+            className={`w-full rounded-lg border text-left transition-all ${layer.color.border} ${layer.color.bg} ${
+              activeLayer === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-3 p-3">
+              <span className="text-lg">{layer.icon}</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-foreground">{layer.name[locale]}</p>
+                  <span className="text-[8px] text-muted-foreground font-mono">{layer.size[locale]}</span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {layer.items.map((item) => (
+                    <span key={item} className="text-[8px] font-mono bg-background/60 px-1.5 py-0.5 rounded">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeLayer !== null && (
+        <div className={`mt-3 rounded-lg border ${layers[activeLayer].color.border} ${layers[activeLayer].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{layers[activeLayer].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? 'Buffer Pool 히트율이 99% 미만이면 innodb_buffer_pool_size를 증가시키세요. SHOW STATUS LIKE \'Innodb_buffer_pool%\';로 확인합니다.'
+            : 'If buffer pool hit rate is below 99%, increase innodb_buffer_pool_size. Check with SHOW STATUS LIKE \'Innodb_buffer_pool%\';'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PostgreSQL Internals — Features
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export function PostgreSQLDiagram({ locale }: DiagramProps) {
+  const [activeFeature, setActiveFeature] = useState<number | null>(null);
+
+  const features = [
+    {
+      name: 'MVCC',
+      icon: '🔄',
+      color: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', header: 'bg-blue-500' },
+      items: ['xmin / xmax', 'Tuple Versioning', 'Snapshot Isolation'],
+      desc: { ko: '행의 여러 버전을 유지하여 읽기와 쓰기가 차단하지 않습니다. 각 행의 xmin(생성 TX), xmax(삭제 TX)으로 가시성을 판단합니다.', en: 'Maintains multiple row versions so reads and writes don\'t block. Visibility determined by xmin (creating TX) and xmax (deleting TX) of each row.' },
+    },
+    {
+      name: 'VACUUM',
+      icon: '🧹',
+      color: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', header: 'bg-amber-500' },
+      items: ['Dead Tuple Cleanup', 'Autovacuum', 'VACUUM FULL', 'Freeze'],
+      desc: { ko: 'MVCC로 쌓이는 Dead Tuple을 정리합니다. Autovacuum이 자동 실행되며, 테이블별 튜닝이 가능합니다. VACUUM FULL은 테이블을 재작성합니다.', en: 'Cleans up dead tuples from MVCC. Autovacuum runs automatically with per-table tuning. VACUUM FULL rewrites the table.' },
+    },
+    {
+      name: { ko: '인덱스 유형', en: 'Index Types' },
+      icon: '📇',
+      color: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', header: 'bg-emerald-500' },
+      items: ['B-tree', 'Hash', 'GIN', 'GiST', 'BRIN', 'SP-GiST'],
+      desc: { ko: '6가지 인덱스 유형을 제공합니다. B-tree(기본), GIN(JSONB/배열), GiST(지리/범위), BRIN(시계열). 부분 인덱스, 표현식 인덱스, 커버링 인덱스도 지원합니다.', en: '6 index types. B-tree (default), GIN (JSONB/arrays), GiST (geometry/range), BRIN (time-series). Supports partial, expression, and covering indexes.' },
+    },
+    {
+      name: { ko: '고유 기능', en: 'Unique Features' },
+      icon: '⚡',
+      color: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', header: 'bg-violet-500' },
+      items: ['LISTEN/NOTIFY', 'Advisory Lock', 'RETURNING', 'INHERITS', 'DOMAIN'],
+      desc: { ko: 'LISTEN/NOTIFY로 실시간 이벤트 처리, Advisory Lock으로 앱 레벨 잠금, RETURNING으로 DML 결과 즉시 반환, 테이블 상속과 도메인 타입을 지원합니다.', en: 'LISTEN/NOTIFY for real-time events, advisory locks for app-level locking, RETURNING for DML results, table inheritance and domain types.' },
+    },
+  ];
+
+  return (
+    <div className="not-prose my-8 p-6 rounded-xl border-2 border-dashed border-border bg-muted/10">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 text-white text-xs font-bold">
+          PG
+        </span>
+        <div>
+          <h3 className="text-sm font-bold">PostgreSQL {locale === 'ko' ? '핵심 내부 구조' : 'Core Internals'}</h3>
+          <p className="text-[10px] text-muted-foreground">
+            {locale === 'ko' ? '각 기능을 클릭하여 상세 정보 확인' : 'Click each feature for details'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {features.map((f, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveFeature(activeFeature === i ? null : i)}
+            className={`rounded-lg border text-left transition-all ${f.color.border} ${f.color.bg} ${
+              activeFeature === i ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'
+            }`}
+          >
+            <div className={`${f.color.header} px-2 py-1.5 rounded-t-[7px] flex items-center gap-1.5`}>
+              <span className="text-sm">{f.icon}</span>
+              <span className="text-white text-[10px] font-bold">{typeof f.name === 'string' ? f.name : f.name[locale]}</span>
+            </div>
+            <div className="p-2">
+              <div className="flex flex-wrap gap-1">
+                {f.items.map((item) => (
+                  <span key={item} className="text-[8px] font-mono bg-background/60 px-1.5 py-0.5 rounded">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {activeFeature !== null && (
+        <div className={`mt-3 rounded-lg border ${features[activeFeature].color.border} ${features[activeFeature].color.bg} p-4 transition-all`}>
+          <p className="text-xs leading-relaxed">{features[activeFeature].desc[locale]}</p>
+        </div>
+      )}
+
+      <div className="mt-5 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+        <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+          <span className="font-bold">TIP:</span>{' '}
+          {locale === 'ko'
+            ? 'EXPLAIN (ANALYZE, BUFFERS)로 실행 계획을 분석하세요. Seq Scan이 나오면 적절한 인덱스 추가를 검토합니다.'
+            : 'Use EXPLAIN (ANALYZE, BUFFERS) to analyze query plans. If Seq Scan appears, consider adding appropriate indexes.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Section → Diagram Mapping
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1992,4 +2412,8 @@ export const sectionDiagrams: Record<string, React.ComponentType<DiagramProps>> 
   'data-warehouse': DataWarehouseDiagram,
   'data-migration': DataMigrationDiagram,
   'db-engine-storage': DbEngineDiagram,
+  'backup-recovery': BackupRecoveryDiagram,
+  'replication-ha': ReplicationHADiagram,
+  'innodb-deep-dive': InnoDBDiagram,
+  'postgresql-internals': PostgreSQLDiagram,
 };
