@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:start": "docker compose -f docker/docker-compose.yml up -d",
     "db:stop": "docker compose -f docker/docker-compose.yml down",
-    "db:reset": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d"
+    "db:reset": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up -d",
+    "build:rag": "node scripts/build-rag.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.997.0",

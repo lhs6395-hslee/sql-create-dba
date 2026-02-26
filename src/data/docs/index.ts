@@ -2359,7 +2359,54 @@ SELECT name, price,
     ELSE '저가'
   END AS price_range
 FROM products;
-\`\`\``,
+\`\`\`
+
+### 상관 서브쿼리 (Correlated Subquery)
+
+외부 쿼리의 각 행에 대해 서브쿼리가 실행됩니다.
+
+\`\`\`sql
+-- 자신의 카테고리 평균보다 비싼 상품
+SELECT p.name, p.price, p.category_id
+FROM products p
+WHERE p.price > (
+  SELECT AVG(p2.price)
+  FROM products p2
+  WHERE p2.category_id = p.category_id  -- 외부 참조!
+);
+\`\`\`
+
+**동작 원리:** 외부 테이블의 각 행마다 서브쿼리가 다시 실행됨 → 행 수 × 서브쿼리 비용
+
+### NOT EXISTS vs NOT IN
+
+\`\`\`sql
+-- 방법 1: NOT IN (NULL 주의!)
+SELECT name FROM customers
+WHERE id NOT IN (SELECT customer_id FROM orders);
+-- ⚠️ orders.customer_id에 NULL이 있으면 결과가 비어버림
+
+-- 방법 2: NOT EXISTS (NULL-safe, 권장)
+SELECT c.name FROM customers c
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+
+-- 방법 3: LEFT JOIN + IS NULL
+SELECT c.name FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+WHERE o.id IS NULL;
+\`\`\`
+
+### 서브쿼리 vs JOIN 성능
+
+| 패턴 | 장점 | 단점 |
+|------|------|------|
+| **서브쿼리** | 가독성, 논리적 분리 | 상관 서브쿼리는 행마다 실행 |
+| **JOIN** | 옵티마이저 최적화에 유리 | 복잡한 조건에서 가독성 저하 |
+| **CTE (WITH)** | 가독성 최고, 재사용 | 일부 DB에서 최적화 장벽 (PG 12+ 개선) |
+
+> **팁:** 대부분의 모던 옵티마이저는 비상관(uncorrelated) 서브쿼리를 JOIN으로 자동 변환합니다. 상관 서브쿼리는 **EXISTS/NOT EXISTS** 형태가 성능상 유리합니다.`,
           en: `## Subqueries
 
 A query nested inside another query, enclosed in parentheses \`()\`.
@@ -2427,7 +2474,54 @@ SELECT name, price,
     ELSE 'Budget'
   END AS price_range
 FROM products;
-\`\`\``,
+\`\`\`
+
+### Correlated Subquery
+
+The subquery executes once for each row of the outer query.
+
+\`\`\`sql
+-- Products more expensive than their category average
+SELECT p.name, p.price, p.category_id
+FROM products p
+WHERE p.price > (
+  SELECT AVG(p2.price)
+  FROM products p2
+  WHERE p2.category_id = p.category_id  -- outer reference!
+);
+\`\`\`
+
+**How it works:** The subquery re-executes for each outer row → rows × subquery cost
+
+### NOT EXISTS vs NOT IN
+
+\`\`\`sql
+-- Method 1: NOT IN (beware of NULLs!)
+SELECT name FROM customers
+WHERE id NOT IN (SELECT customer_id FROM orders);
+-- ⚠️ If orders.customer_id contains NULL, result set is empty
+
+-- Method 2: NOT EXISTS (NULL-safe, recommended)
+SELECT c.name FROM customers c
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+
+-- Method 3: LEFT JOIN + IS NULL
+SELECT c.name FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+WHERE o.id IS NULL;
+\`\`\`
+
+### Subquery vs JOIN Performance
+
+| Pattern | Pros | Cons |
+|---------|------|------|
+| **Subquery** | Readability, logical separation | Correlated runs per row |
+| **JOIN** | Optimizer-friendly | Complex conditions hurt readability |
+| **CTE (WITH)** | Best readability, reusable | Optimization barrier in some DBs (PG 12+ improved) |
+
+> **Tip:** Most modern optimizers automatically convert uncorrelated subqueries to JOINs. For correlated subqueries, **EXISTS/NOT EXISTS** form tends to perform better.`,
         },
       },
       {
@@ -3363,7 +3457,60 @@ WHERE p.price > 100000;
 | Sort | 정렬 연산 |
 | cost | 예상 비용 (낮을수록 좋음) |
 | rows | 예상 행 수 |
-| actual time | 실제 실행 시간 (ms) |`,
+| actual time | 실제 실행 시간 (ms) |
+
+### B-tree 내부 구조
+
+B-tree는 거의 모든 RDBMS 인덱스의 핵심 자료구조입니다.
+
+**구조 특징:**
+- **루트(Root)** → **내부 노드(Internal)** → **리프 노드(Leaf)** 의 트리 구조
+- 각 노드는 디스크의 한 페이지(보통 8KB)에 저장
+- 모든 리프 노드는 같은 깊이 → **균형 트리(Balanced Tree)**
+- 리프 노드는 서로 연결 리스트로 연결 → 범위 검색에 효율적
+
+**검색 복잡도:**
+- 1백만 행: ~3회 디스크 I/O (트리 높이 3)
+- 1억 행: ~4회 디스크 I/O (트리 높이 4)
+- Full Table Scan 대비 **수십~수백 배** 빠름
+
+**B-tree가 지원하는 연산:**
+\`\`\`
+=   : 정확 일치 (루트 → 리프까지 탐색)
+<,> : 범위 검색 (리프 노드 연결 리스트 순회)
+BETWEEN, IN : 범위/다중 값 검색
+ORDER BY : 인덱스 순서 = 정렬 순서 (Sort 생략 가능)
+MIN/MAX : 리프 노드의 양 끝에서 바로 반환
+\`\`\`
+
+### 인덱스 설계 전략
+
+**복합 인덱스의 열 순서가 중요합니다:**
+\`\`\`sql
+-- 인덱스: (customer_id, order_date)
+SELECT * FROM orders WHERE customer_id = 5;                     -- ✓ 사용
+SELECT * FROM orders WHERE customer_id = 5 AND order_date > '2024-01-01'; -- ✓ 사용
+SELECT * FROM orders WHERE order_date > '2024-01-01';           -- ✗ 미사용 (선두 열 없음)
+\`\`\`
+
+**규칙: 등호(=) 조건 열을 앞에, 범위 조건 열을 뒤에 배치**
+
+### 쿼리 비용 모델 (Cost Model)
+
+옵티마이저는 각 실행 계획의 비용을 추정하여 최적 계획을 선택합니다:
+
+| 요소 | 설명 | 비용 |
+|------|------|------|
+| **Sequential I/O** | 디스크 순차 읽기 | 1 (기준) |
+| **Random I/O** | 디스크 랜덤 읽기 | ~4배 (SSD) / ~50배 (HDD) |
+| **CPU 연산** | 행 비교, 필터링 | 매우 작음 |
+
+\`\`\`sql
+-- 비용 확인 예시
+EXPLAIN SELECT * FROM orders WHERE customer_id = 5;
+-- cost=0.29..8.31  → 시작비용 0.29, 총비용 8.31
+-- 비용 단위는 seq_page_cost(1.0) 기준 상대값
+\`\`\``,
           en: `## Indexes
 
 Data structures that speed up data retrieval, like a book's table of contents.
@@ -3454,7 +3601,60 @@ WHERE p.price > 100000;
 | Sort | Sort operation |
 | cost | Estimated cost (lower is better) |
 | rows | Estimated row count |
-| actual time | Actual execution time (ms) |`,
+| actual time | Actual execution time (ms) |
+
+### B-tree Internal Structure
+
+B-tree is the core data structure behind nearly all RDBMS indexes.
+
+**Structure:**
+- **Root** → **Internal Nodes** → **Leaf Nodes** tree structure
+- Each node is stored in one disk page (typically 8KB)
+- All leaf nodes are at the same depth → **Balanced Tree**
+- Leaf nodes are linked via a doubly linked list → efficient range scans
+
+**Search Complexity:**
+- 1 million rows: ~3 disk I/Os (tree height 3)
+- 100 million rows: ~4 disk I/Os (tree height 4)
+- **10x–100x faster** than Full Table Scan
+
+**Operations B-tree Supports:**
+\`\`\`
+=       : Exact match (traverse root → leaf)
+<, >    : Range scan (follow leaf linked list)
+BETWEEN, IN : Range / multi-value lookup
+ORDER BY : Index order = sort order (skip Sort step)
+MIN/MAX : Return directly from leaf endpoints
+\`\`\`
+
+### Index Design Strategy
+
+**Column order in composite indexes matters:**
+\`\`\`sql
+-- Index: (customer_id, order_date)
+SELECT * FROM orders WHERE customer_id = 5;                     -- ✓ Used
+SELECT * FROM orders WHERE customer_id = 5 AND order_date > '2024-01-01'; -- ✓ Used
+SELECT * FROM orders WHERE order_date > '2024-01-01';           -- ✗ Not used (leading column missing)
+\`\`\`
+
+**Rule: Place equality (=) columns first, range columns last**
+
+### Query Cost Model
+
+The optimizer estimates the cost of each execution plan to choose the best one:
+
+| Factor | Description | Cost |
+|--------|-------------|------|
+| **Sequential I/O** | Sequential disk reads | 1 (baseline) |
+| **Random I/O** | Random disk reads | ~4x (SSD) / ~50x (HDD) |
+| **CPU** | Row comparison, filtering | Very small |
+
+\`\`\`sql
+-- Cost example
+EXPLAIN SELECT * FROM orders WHERE customer_id = 5;
+-- cost=0.29..8.31  → startup cost 0.29, total cost 8.31
+-- Cost units are relative to seq_page_cost (1.0)
+\`\`\``,
         },
       },
       {
@@ -3555,7 +3755,80 @@ name = new_row.name, price = new_row.price;
 -- MySQL (레거시): VALUES() 함수 (향후 제거 예정, deprecated)
 -- INSERT INTO products (...) VALUES (...)
 -- ON DUPLICATE KEY UPDATE name = VALUES(name);
-\`\`\``,
+\`\`\`
+
+### 잠금 유형 (Lock Types)
+
+동시성 제어를 위해 데이터베이스는 다양한 잠금을 사용합니다.
+
+**행 수준 잠금 (Row-Level Locks):**
+| 잠금 모드 | 설명 | 호환성 |
+|-----------|------|--------|
+| **FOR SHARE** (공유 잠금) | 다른 트랜잭션도 읽기 가능 | 공유 ↔ 공유: 호환 |
+| **FOR UPDATE** (배타적 잠금) | 다른 트랜잭션의 읽기/수정 차단 | 배타 ↔ 모든 잠금: 비호환 |
+
+\`\`\`sql
+-- 잠금 걸기 예시
+BEGIN;
+SELECT * FROM products WHERE id = 1 FOR UPDATE;
+-- 이 행은 COMMIT/ROLLBACK까지 다른 트랜잭션이 수정할 수 없음
+UPDATE products SET price = 50000 WHERE id = 1;
+COMMIT;
+\`\`\`
+
+**테이블 수준 잠금 (Table-Level Locks, PostgreSQL):**
+| 잠금 모드 | 용도 | 충돌 대상 |
+|-----------|------|----------|
+| ACCESS SHARE | SELECT | ACCESS EXCLUSIVE |
+| ROW SHARE | SELECT FOR UPDATE | EXCLUSIVE, ACCESS EXCLUSIVE |
+| ROW EXCLUSIVE | INSERT/UPDATE/DELETE | SHARE, EXCLUSIVE, ACCESS EXCLUSIVE |
+| ACCESS EXCLUSIVE | VACUUM FULL, DROP TABLE | 모든 잠금 |
+
+### 교착 상태 (Deadlock)
+
+두 트랜잭션이 서로의 잠금을 기다리는 상태입니다.
+
+\`\`\`
+트랜잭션 A: Lock(행1) → 행2 잠금 대기...
+트랜잭션 B: Lock(행2) → 행1 잠금 대기...
+→ 영원히 대기 = Deadlock!
+\`\`\`
+
+\`\`\`sql
+-- 교착 상태 예시
+-- 트랜잭션 A                    -- 트랜잭션 B
+BEGIN;                           BEGIN;
+UPDATE accounts SET balance=0    UPDATE accounts SET balance=0
+WHERE id = 1;                    WHERE id = 2;
+-- A가 행1 잠금                  -- B가 행2 잠금
+UPDATE accounts SET balance=0    UPDATE accounts SET balance=0
+WHERE id = 2;                    WHERE id = 1;
+-- A가 행2 대기 (B가 잠금 중)    -- B가 행1 대기 (A가 잠금 중)
+-- → DEADLOCK 감지 → 한 트랜잭션 강제 ROLLBACK
+\`\`\`
+
+**교착 상태 방지 전략:**
+- 모든 트랜잭션에서 **같은 순서**로 리소스에 접근
+- 트랜잭션을 **가능한 짧게** 유지
+- \`lock_timeout\` 설정으로 대기 시간 제한
+
+### 2단계 잠금 (Two-Phase Locking, 2PL)
+
+직렬 가능성(Serializability)을 보장하는 동시성 제어 프로토콜입니다.
+
+\`\`\`
+[확장 단계 (Growing Phase)] → [축소 단계 (Shrinking Phase)]
+잠금 획득만 가능              잠금 해제만 가능
+잠금 해제 불가                잠금 획득 불가
+\`\`\`
+
+| 변형 | 설명 |
+|------|------|
+| **Basic 2PL** | 축소 단계에서 잠금 해제 시작 |
+| **Strict 2PL** | 커밋/롤백 시 모든 배타적 잠금 해제 |
+| **Rigorous 2PL** | 커밋/롤백 시 모든 잠금(공유+배타) 해제 |
+
+> 대부분의 상용 RDBMS는 **Strict 2PL**을 사용합니다.`,
           en: `## Transactions
 
 Group multiple SQL statements into a single unit of work. Either all succeed, or all are rolled back.
@@ -3649,7 +3922,80 @@ name = new_row.name, price = new_row.price;
 -- MySQL (legacy): VALUES() function (deprecated, will be removed)
 -- INSERT INTO products (...) VALUES (...)
 -- ON DUPLICATE KEY UPDATE name = VALUES(name);
-\`\`\``,
+\`\`\`
+
+### Lock Types
+
+Databases use various locks for concurrency control.
+
+**Row-Level Locks:**
+| Lock Mode | Description | Compatibility |
+|-----------|-------------|---------------|
+| **FOR SHARE** (Shared Lock) | Other transactions can still read | Shared ↔ Shared: Compatible |
+| **FOR UPDATE** (Exclusive Lock) | Blocks other read/write | Exclusive ↔ Any lock: Incompatible |
+
+\`\`\`sql
+-- Locking example
+BEGIN;
+SELECT * FROM products WHERE id = 1 FOR UPDATE;
+-- This row cannot be modified by others until COMMIT/ROLLBACK
+UPDATE products SET price = 50000 WHERE id = 1;
+COMMIT;
+\`\`\`
+
+**Table-Level Locks (PostgreSQL):**
+| Lock Mode | Purpose | Conflicts With |
+|-----------|---------|---------------|
+| ACCESS SHARE | SELECT | ACCESS EXCLUSIVE |
+| ROW SHARE | SELECT FOR UPDATE | EXCLUSIVE, ACCESS EXCLUSIVE |
+| ROW EXCLUSIVE | INSERT/UPDATE/DELETE | SHARE, EXCLUSIVE, ACCESS EXCLUSIVE |
+| ACCESS EXCLUSIVE | VACUUM FULL, DROP TABLE | All locks |
+
+### Deadlock
+
+Two transactions waiting for each other's locks indefinitely.
+
+\`\`\`
+Transaction A: Lock(row1) → waiting for row2...
+Transaction B: Lock(row2) → waiting for row1...
+→ Wait forever = Deadlock!
+\`\`\`
+
+\`\`\`sql
+-- Deadlock example
+-- Transaction A                 -- Transaction B
+BEGIN;                           BEGIN;
+UPDATE accounts SET balance=0    UPDATE accounts SET balance=0
+WHERE id = 1;                    WHERE id = 2;
+-- A locks row 1                 -- B locks row 2
+UPDATE accounts SET balance=0    UPDATE accounts SET balance=0
+WHERE id = 2;                    WHERE id = 1;
+-- A waits for row 2 (B holds)  -- B waits for row 1 (A holds)
+-- → DEADLOCK detected → one transaction force-ROLLED BACK
+\`\`\`
+
+**Deadlock Prevention Strategies:**
+- Access resources in the **same order** across all transactions
+- Keep transactions **as short as possible**
+- Set \`lock_timeout\` to limit wait time
+
+### Two-Phase Locking (2PL)
+
+A concurrency control protocol that guarantees Serializability.
+
+\`\`\`
+[Growing Phase]          → [Shrinking Phase]
+Can only acquire locks     Can only release locks
+Cannot release locks       Cannot acquire locks
+\`\`\`
+
+| Variant | Description |
+|---------|-------------|
+| **Basic 2PL** | Release locks during shrinking phase |
+| **Strict 2PL** | Release all exclusive locks at commit/rollback |
+| **Rigorous 2PL** | Release all locks (shared + exclusive) at commit/rollback |
+
+> Most commercial RDBMS use **Strict 2PL**.`,
         },
       },
       {
@@ -5023,9 +5369,42 @@ CREATE TABLE product_images (
         title: { ko: 'VACUUM과 데이터베이스 유지보수', en: 'VACUUM & Database Maintenance' },
         level: 'database',
         content: {
-          ko: `## VACUUM (PostgreSQL)
+          ko: `## MVCC와 Dead Tuple
 
-PostgreSQL은 MVCC(Multi-Version Concurrency Control) 방식으로 동작합니다. UPDATE/DELETE된 행의 이전 버전(dead tuple)이 남아있어 정리가 필요합니다.
+PostgreSQL은 **MVCC(Multi-Version Concurrency Control)** 방식으로 동작합니다. 행을 UPDATE하면 기존 행을 수정하지 않고 **새 버전을 생성**합니다.
+
+\`\`\`
+[INSERT] → Tuple(xmin=100, xmax=∞)       -- 살아있는 행
+[UPDATE] → Tuple(xmin=100, xmax=200)     -- Dead Tuple (이전 버전)
+           Tuple(xmin=200, xmax=∞)       -- 새 버전 (살아있는 행)
+[DELETE] → Tuple(xmin=100, xmax=300)     -- Dead Tuple
+\`\`\`
+
+- **xmin**: 해당 행을 생성한 트랜잭션 ID
+- **xmax**: 해당 행을 삭제/수정한 트랜잭션 ID (∞이면 현재 유효)
+- **Dead Tuple**: 어떤 트랜잭션에서도 볼 수 없는 이전 버전 → VACUUM이 정리
+
+### 테이블 팽창 (Table Bloat)
+
+Dead tuple이 축적되면 테이블이 불필요하게 커집니다.
+
+\`\`\`sql
+-- Dead tuple 비율 확인
+SELECT relname,
+  n_live_tup,
+  n_dead_tup,
+  ROUND(n_dead_tup * 100.0 / NULLIF(n_live_tup + n_dead_tup, 0), 1) AS dead_pct,
+  last_vacuum, last_autovacuum
+FROM pg_stat_user_tables
+ORDER BY n_dead_tup DESC;
+\`\`\`
+
+**팽창의 영향:**
+- Sequential Scan이 불필요한 페이지를 읽어 느려짐
+- 인덱스도 dead tuple을 가리켜 비효율적
+- 디스크 공간 낭비
+
+## VACUUM 종류
 
 \`\`\`sql
 -- 기본 VACUUM (공간 재사용 가능하게 표시)
@@ -5034,48 +5413,135 @@ VACUUM products;
 -- VACUUM ANALYZE (통계 정보도 갱신)
 VACUUM ANALYZE products;
 
--- VACUUM FULL (물리적 공간 회수 - 배타적 잠금 발생)
+-- VACUUM FULL (물리적 공간 회수 - 배타적 잠금 발생!)
 VACUUM FULL products;
+
+-- VACUUM VERBOSE (상세 로그 출력)
+VACUUM VERBOSE products;
 \`\`\`
 
-| 명령 | 잠금 | 공간 회수 | 속도 |
-|------|------|----------|------|
-| VACUUM | 없음 | 재사용 표시 | 빠름 |
-| VACUUM FULL | 배타적 잠금 | 물리적 회수 | 느림 |
-| VACUUM ANALYZE | 없음 | 재사용 표시 + 통계 | 빠름 |
+| 명령 | 잠금 | 공간 회수 | 속도 | 사용 시기 |
+|------|------|----------|------|----------|
+| **VACUUM** | ShareUpdateExclusiveLock | 재사용 표시 | 빠름 | 일상적 유지보수 |
+| **VACUUM FULL** | AccessExclusiveLock (읽기/쓰기 차단!) | 물리적 회수 (테이블 재작성) | 느림 | 대규모 DELETE 후 공간 회수 |
+| **VACUUM ANALYZE** | ShareUpdateExclusiveLock | 재사용 표시 + 통계 갱신 | 빠름 | 대량 DML 후 |
+| **VACUUM FREEZE** | ShareUpdateExclusiveLock | 트랜잭션 ID wraparound 방지 | 보통 | XID 임계치 도달 시 |
+
+> ⚠️ **VACUUM FULL**은 테이블 전체를 새로 작성하므로 운영 시간에 실행하면 서비스 중단이 발생할 수 있습니다.
 
 ### ANALYZE (통계 갱신)
 
+쿼리 옵티마이저가 최적의 실행 계획을 선택하려면 정확한 통계가 필요합니다.
+
 \`\`\`sql
-ANALYZE products;  -- 쿼리 플래너의 통계 정보 갱신
+ANALYZE products;  -- 특정 테이블 통계 갱신
 ANALYZE;           -- 전체 데이터베이스
+
+-- 통계 정보 확인
+SELECT attname, n_distinct, most_common_vals, correlation
+FROM pg_stats
+WHERE tablename = 'products';
 \`\`\`
 
-### autovacuum
+**통계가 오래되면:**
+- 옵티마이저가 잘못된 실행 계획을 선택 (예: Seq Scan 대신 Index Scan이 최적인데 잘못 판단)
+- JOIN 순서가 비최적
+- 메모리 할당이 부정확
 
-PostgreSQL은 기본적으로 autovacuum 데몬이 자동으로 VACUUM을 실행합니다.
+### autovacuum 설정과 튜닝
+
+PostgreSQL은 **autovacuum 데몬**이 자동으로 VACUUM과 ANALYZE를 실행합니다.
 
 \`\`\`sql
 -- autovacuum 설정 확인
-SELECT name, setting FROM pg_settings
+SELECT name, setting, short_desc FROM pg_settings
 WHERE name LIKE 'autovacuum%';
+\`\`\`
+
+**핵심 파라미터:**
+
+| 파라미터 | 기본값 | 설명 |
+|---------|--------|------|
+| \`autovacuum_vacuum_threshold\` | 50 | VACUUM 트리거 최소 dead tuple 수 |
+| \`autovacuum_vacuum_scale_factor\` | 0.2 | 테이블 크기의 20%가 dead tuple이면 VACUUM |
+| \`autovacuum_analyze_threshold\` | 50 | ANALYZE 트리거 최소 변경 행 수 |
+| \`autovacuum_analyze_scale_factor\` | 0.1 | 테이블 크기의 10%가 변경되면 ANALYZE |
+
+**트리거 공식:**
+\`\`\`
+VACUUM 실행 조건: dead_tuples ≥ threshold + scale_factor × n_live_tup
+예) 10만 행 테이블: 50 + 0.2 × 100,000 = 20,050개 dead tuple 시 VACUUM
+\`\`\`
+
+**대용량 테이블 튜닝:**
+\`\`\`sql
+-- 특정 테이블에 개별 설정 적용
+ALTER TABLE orders SET (
+  autovacuum_vacuum_scale_factor = 0.05,  -- 5%로 낮춤 (더 자주 실행)
+  autovacuum_vacuum_threshold = 100
+);
 \`\`\`
 
 ## MySQL 유지보수
 
 \`\`\`sql
--- 테이블 최적화 (VACUUM FULL과 유사)
+-- 테이블 최적화 (VACUUM FULL과 유사, 테이블 재구성)
 OPTIMIZE TABLE products;
 
 -- 테이블 분석 (통계 갱신)
 ANALYZE TABLE products;
 
--- 테이블 점검
+-- 테이블 점검 (무결성 검사)
 CHECK TABLE products;
-\`\`\``,
-          en: `## VACUUM (PostgreSQL)
 
-PostgreSQL uses MVCC (Multi-Version Concurrency Control). Previous versions of UPDATE/DELETE'd rows (dead tuples) remain and need cleanup.
+-- InnoDB 버퍼 풀 상태
+SHOW ENGINE INNODB STATUS;
+\`\`\`
+
+### MySQL vs PostgreSQL 유지보수 비교
+
+| 작업 | PostgreSQL | MySQL (InnoDB) |
+|------|-----------|---------------|
+| Dead row 정리 | VACUUM | 자동 (purge thread) |
+| 공간 회수 | VACUUM FULL | OPTIMIZE TABLE |
+| 통계 갱신 | ANALYZE | ANALYZE TABLE |
+| 자동화 | autovacuum | 자동 purge + innodb_stats_auto_recalc |`,
+          en: `## MVCC and Dead Tuples
+
+PostgreSQL uses **MVCC (Multi-Version Concurrency Control)**. When a row is UPDATEd, the old row is not modified — a **new version is created** instead.
+
+\`\`\`
+[INSERT] → Tuple(xmin=100, xmax=∞)       -- Live row
+[UPDATE] → Tuple(xmin=100, xmax=200)     -- Dead Tuple (old version)
+           Tuple(xmin=200, xmax=∞)       -- New version (live row)
+[DELETE] → Tuple(xmin=100, xmax=300)     -- Dead Tuple
+\`\`\`
+
+- **xmin**: Transaction ID that created this row
+- **xmax**: Transaction ID that deleted/updated this row (∞ means currently valid)
+- **Dead Tuple**: Old version invisible to all transactions → VACUUM cleans these up
+
+### Table Bloat
+
+When dead tuples accumulate, the table grows unnecessarily large.
+
+\`\`\`sql
+-- Check dead tuple ratio
+SELECT relname,
+  n_live_tup,
+  n_dead_tup,
+  ROUND(n_dead_tup * 100.0 / NULLIF(n_live_tup + n_dead_tup, 0), 1) AS dead_pct,
+  last_vacuum, last_autovacuum
+FROM pg_stat_user_tables
+ORDER BY n_dead_tup DESC;
+\`\`\`
+
+**Impact of bloat:**
+- Sequential Scans read unnecessary pages → slower queries
+- Indexes point to dead tuples → inefficient
+- Wasted disk space
+
+## VACUUM Types
 
 \`\`\`sql
 -- Basic VACUUM (marks space as reusable)
@@ -5084,45 +5550,99 @@ VACUUM products;
 -- VACUUM ANALYZE (also updates statistics)
 VACUUM ANALYZE products;
 
--- VACUUM FULL (physically reclaims space - exclusive lock)
+-- VACUUM FULL (physically reclaims space - exclusive lock!)
 VACUUM FULL products;
+
+-- VACUUM VERBOSE (detailed log output)
+VACUUM VERBOSE products;
 \`\`\`
 
-| Command | Lock | Space Reclaim | Speed |
-|---------|------|--------------|-------|
-| VACUUM | None | Marks reusable | Fast |
-| VACUUM FULL | Exclusive | Physical reclaim | Slow |
-| VACUUM ANALYZE | None | Marks + stats | Fast |
+| Command | Lock | Space Reclaim | Speed | When to Use |
+|---------|------|--------------|-------|-------------|
+| **VACUUM** | ShareUpdateExclusiveLock | Marks reusable | Fast | Routine maintenance |
+| **VACUUM FULL** | AccessExclusiveLock (blocks reads/writes!) | Physical reclaim (table rewrite) | Slow | After massive DELETE to reclaim space |
+| **VACUUM ANALYZE** | ShareUpdateExclusiveLock | Marks reusable + stats update | Fast | After bulk DML |
+| **VACUUM FREEZE** | ShareUpdateExclusiveLock | Prevents txn ID wraparound | Moderate | When XID threshold reached |
+
+> ⚠️ **VACUUM FULL** rewrites the entire table — running it during production hours can cause service outages.
 
 ### ANALYZE (Update Statistics)
 
+The query optimizer needs accurate statistics to choose optimal execution plans.
+
 \`\`\`sql
-ANALYZE products;  -- Update planner statistics
+ANALYZE products;  -- Update specific table stats
 ANALYZE;           -- Entire database
+
+-- View statistics
+SELECT attname, n_distinct, most_common_vals, correlation
+FROM pg_stats
+WHERE tablename = 'products';
 \`\`\`
 
-### autovacuum
+**When statistics are stale:**
+- Optimizer chooses wrong plans (e.g., picks Seq Scan when Index Scan is optimal)
+- Suboptimal JOIN ordering
+- Inaccurate memory allocation
 
-PostgreSQL's autovacuum daemon automatically runs VACUUM by default.
+### autovacuum Configuration & Tuning
+
+PostgreSQL's **autovacuum daemon** automatically runs VACUUM and ANALYZE.
 
 \`\`\`sql
 -- Check autovacuum settings
-SELECT name, setting FROM pg_settings
+SELECT name, setting, short_desc FROM pg_settings
 WHERE name LIKE 'autovacuum%';
+\`\`\`
+
+**Key Parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| \`autovacuum_vacuum_threshold\` | 50 | Min dead tuples before triggering VACUUM |
+| \`autovacuum_vacuum_scale_factor\` | 0.2 | VACUUM when 20% of table is dead tuples |
+| \`autovacuum_analyze_threshold\` | 50 | Min changed rows before triggering ANALYZE |
+| \`autovacuum_analyze_scale_factor\` | 0.1 | ANALYZE when 10% of table has changed |
+
+**Trigger Formula:**
+\`\`\`
+VACUUM triggers when: dead_tuples ≥ threshold + scale_factor × n_live_tup
+Example) 100K row table: 50 + 0.2 × 100,000 = 20,050 dead tuples trigger VACUUM
+\`\`\`
+
+**Large Table Tuning:**
+\`\`\`sql
+-- Apply per-table settings
+ALTER TABLE orders SET (
+  autovacuum_vacuum_scale_factor = 0.05,  -- Lower to 5% (runs more often)
+  autovacuum_vacuum_threshold = 100
+);
 \`\`\`
 
 ## MySQL Maintenance
 
 \`\`\`sql
--- Optimize table (similar to VACUUM FULL)
+-- Optimize table (similar to VACUUM FULL, rebuilds table)
 OPTIMIZE TABLE products;
 
 -- Analyze table (update statistics)
 ANALYZE TABLE products;
 
--- Check table
+-- Check table (integrity check)
 CHECK TABLE products;
-\`\`\``,
+
+-- InnoDB buffer pool status
+SHOW ENGINE INNODB STATUS;
+\`\`\`
+
+### MySQL vs PostgreSQL Maintenance Comparison
+
+| Task | PostgreSQL | MySQL (InnoDB) |
+|------|-----------|---------------|
+| Dead row cleanup | VACUUM | Automatic (purge thread) |
+| Space reclaim | VACUUM FULL | OPTIMIZE TABLE |
+| Stats update | ANALYZE | ANALYZE TABLE |
+| Automation | autovacuum | Auto purge + innodb_stats_auto_recalc |`,
         },
       },
       {

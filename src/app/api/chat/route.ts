@@ -4,6 +4,8 @@ import {
   type Message,
   type ContentBlock,
 } from '@aws-sdk/client-bedrock-runtime';
+import { getQueryEmbedding } from '@/lib/rag/embeddings';
+import { searchVectors, isRagAvailable } from '@/lib/rag/vector-store';
 
 /* ------------------------------------------------------------------ */
 /*  Bedrock Client                                                     */
@@ -49,7 +51,39 @@ The platform supports both PostgreSQL 16 and MySQL 8.0.
 - Use markdown code blocks for SQL examples
 - Respond in the same language the student uses (Korean or English)
 - Be encouraging but honest about mistakes
-- When explaining concepts, relate them to the platform's level structure`;
+- When explaining concepts, relate them to the platform's level structure
+- When reference material from textbooks is provided below, use it to give more accurate and detailed answers. Cite the source when appropriate.`;
+
+/* ------------------------------------------------------------------ */
+/*  RAG: Retrieve relevant textbook context                            */
+/* ------------------------------------------------------------------ */
+async function retrieveRagContext(query: string): Promise<string> {
+  if (!isRagAvailable()) return '';
+
+  try {
+    const queryEmbedding = await getQueryEmbedding(query);
+    const results = searchVectors(queryEmbedding, 3);
+
+    if (results.length === 0) return '';
+
+    const SOURCE_LABELS: Record<string, string> = {
+      'dbms-textbook': 'Database Management Systems Textbook',
+      'ullman-db-complete': 'Database Systems: The Complete Book (Garcia-Molina, Ullman, Widom)',
+    };
+
+    const context = results
+      .map((r, i) => {
+        const src = SOURCE_LABELS[r.source] || r.source;
+        return `### Reference ${i + 1} [${src}] (relevance: ${(r.score * 100).toFixed(0)}%)\n${r.text}`;
+      })
+      .join('\n\n');
+
+    return `\n\n## Reference Material from Database Textbooks\nUse the following excerpts to provide more accurate answers when relevant.\n\n${context}`;
+  } catch (err) {
+    console.error('[RAG] Retrieval failed:', err);
+    return '';
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Route Handler                                                      */
@@ -71,6 +105,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // RAG: retrieve relevant textbook context for the latest user message
+    const lastUserMessage =
+      [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+    const ragContext = await retrieveRagContext(lastUserMessage);
+
     // Convert to Bedrock Converse format
     const bedrockMessages: Message[] = messages.map((m) => ({
       role: m.role,
@@ -80,7 +119,7 @@ export async function POST(req: Request) {
     const command = new ConverseStreamCommand({
       modelId: MODEL_ID,
       messages: bedrockMessages,
-      system: [{ text: SYSTEM_PROMPT }],
+      system: [{ text: SYSTEM_PROMPT + ragContext }],
       inferenceConfig: {
         maxTokens: 2048,
         temperature: 0.7,
