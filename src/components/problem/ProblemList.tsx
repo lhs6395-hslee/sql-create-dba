@@ -27,7 +27,7 @@ export default function ProblemList({ problems, currentProblemId }: ProblemListP
         return (
           <Link
             key={problem.id}
-            href={`/levels/${problem.level}/${problem.id}`}
+            href={`/database/levels/${problem.level}/${problem.id}`}
             className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
               isActive

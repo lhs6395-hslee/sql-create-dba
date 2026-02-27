@@ -33,7 +33,7 @@ export default function LevelPage() {
         <h1 className="text-2xl font-bold">
           {locale === 'ko' ? '준비 중인 레벨입니다' : 'This level is coming soon'}
         </h1>
-        <Link href="/">
+        <Link href="/database">
           <Button variant="outline" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             {locale === 'ko' ? '홈으로 돌아가기' : 'Back to Home'}
@@ -49,7 +49,7 @@ export default function LevelPage() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="flex items-center gap-4">
-        <Link href="/">
+        <Link href="/database">
           <Button variant="ghost" size="sm" className="gap-1">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -83,7 +83,7 @@ export default function LevelPage() {
                 const isAttempted = attempt?.status === 'attempted';
 
                 return (
-                  <Link key={problem.id} href={`/levels/${level}/${problem.id}`}>
+                  <Link key={problem.id} href={`/database/levels/${level}/${problem.id}`}>
                     <Card className="group hover:shadow-md transition-all hover:-translate-y-0.5 cursor-pointer">
                       <CardContent className="p-4 flex items-center gap-3">
                         {isCompleted ? (

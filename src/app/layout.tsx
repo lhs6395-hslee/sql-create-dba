@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SQL-DBA Learning Platform",
-  description: "Master SQL skills from beginner to expert DBA level",
+  title: "IT Tech Hub",
+  description: "Your gateway to mastering Database, AI, and Kubernetes technologies",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
-# SQL-DBA Learning Platform
+# IT Tech Hub
 
-DBA를 목표로 하는 학습자가 SQL 실력을 초보부터 전문가 수준까지 체계적으로 향상시킬 수 있는 웹 기반 학습 플랫폼입니다.
-실제 PostgreSQL / MySQL 데이터베이스에 SQL을 실행하고, 즉시 채점과 설명을 받을 수 있습니다.
+Database, AI/ML, Kubernetes 등 IT 핵심 기술을 체계적으로 학습할 수 있는 웹 기반 학습 플랫폼입니다.
+현재 Database 학습 경로가 활성화되어 있으며, 실제 PostgreSQL / MySQL 데이터베이스에 SQL을 실행하고 즉시 채점과 설명을 받을 수 있습니다.
 
 > **한국어 / English** 전환 지원 | **다크 / 라이트** 테마 | **PostgreSQL / MySQL** 선택 실행
 
@@ -170,7 +170,7 @@ erDiagram
 ```bash
 # 1. Clone & install
 git clone <repository-url>
-cd sql-create-dba
+cd tech-hub
 npm install
 
 # 2. Start databases + dev server (한 번에)
@@ -215,7 +215,7 @@ BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0
 ## Project Structure
 
 ```
-sql-create-dba/
+tech-hub/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── api/

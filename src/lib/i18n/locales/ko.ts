@@ -1,6 +1,6 @@
 export const ko = {
   common: {
-    appName: 'SQL-DBA 학습 플랫폼',
+    appName: 'IT Tech Hub',
     loading: '로딩 중...',
     error: '오류가 발생했습니다',
     back: '뒤로',
@@ -9,6 +9,23 @@ export const ko = {
     close: '닫기',
     reset: '초기화',
     submit: '제출',
+  },
+  hub: {
+    title: '무엇을 학습하시겠습니까?',
+    subtitle: '학습할 기술 분야를 선택하세요',
+    comingSoon: '준비 중',
+    database: {
+      title: 'Database',
+      description: 'SQL 쿼리 작성부터 DBA 실무까지 체계적으로 학습합니다',
+    },
+    ai: {
+      title: 'AI / ML',
+      description: '인공지능과 머신러닝의 핵심 개념을 학습합니다',
+    },
+    kubernetes: {
+      title: 'Kubernetes',
+      description: '컨테이너 오케스트레이션과 클라우드 네이티브 기술을 학습합니다',
+    },
   },
   nav: {
     home: '홈',

@@ -215,7 +215,7 @@ export default function ProblemWorkspacePage() {
     if (!problem) return;
     const next = getNextProblem(problem.id);
     if (next) {
-      router.push(`/levels/${next.level}/${next.id}`);
+      router.push(`/database/levels/${next.level}/${next.id}`);
       handleReset();
     }
   }, [problem, router, handleReset]);
@@ -230,7 +230,7 @@ export default function ProblemWorkspacePage() {
         <h1 className="text-2xl font-bold">
           {locale === 'ko' ? '문제를 찾을 수 없습니다' : 'Problem not found'}
         </h1>
-        <Link href={`/levels/${level}`}>
+        <Link href={`/database/levels/${level}`}>
           <Button variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             {locale === 'ko' ? '목록으로' : 'Back to list'}
@@ -246,7 +246,7 @@ export default function ProblemWorkspacePage() {
       {sidebarOpen && (
         <aside className="w-64 border-r bg-muted/20 shrink-0">
           <div className="p-3 border-b flex items-center justify-between">
-            <Link href={`/levels/${level}`} className="text-sm font-medium hover:text-primary transition-colors">
+            <Link href={`/database/levels/${level}`} className="text-sm font-medium hover:text-primary transition-colors">
               {locale === 'ko' ? '문제 목록' : 'Problems'}
             </Link>
             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSidebarOpen(false)}>

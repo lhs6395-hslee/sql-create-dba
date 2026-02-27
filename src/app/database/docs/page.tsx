@@ -231,7 +231,7 @@ export default function DocsPage() {
 
           {/* Sidebar Footer */}
           <div className="p-3 border-t space-y-2">
-            <Link href="/levels/beginner" className="block">
+            <Link href="/database/levels/beginner" className="block">
               <Button variant="default" size="sm" className="w-full text-xs gap-1.5 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white border-0">
                 <GraduationCap className="h-3.5 w-3.5" />
                 {locale === 'ko' ? '문제 풀러 가기' : 'Go to Problems'}
@@ -518,7 +518,7 @@ export default function DocsPage() {
                       </p>
                     </button>
                   ) : (
-                    <Link href="/levels/beginner" className="flex-1">
+                    <Link href="/database/levels/beginner" className="flex-1">
                       <div className="h-full group text-right p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all">
                         <div className="flex items-center justify-end gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 mb-1">
                           {locale === 'ko' ? '학습 완료!' : 'All done!'}

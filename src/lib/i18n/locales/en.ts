@@ -2,7 +2,7 @@ import type { TranslationKeys } from './ko';
 
 export const en: TranslationKeys = {
   common: {
-    appName: 'SQL-DBA Learning Platform',
+    appName: 'IT Tech Hub',
     loading: 'Loading...',
     error: 'An error occurred',
     back: 'Back',
@@ -11,6 +11,23 @@ export const en: TranslationKeys = {
     close: 'Close',
     reset: 'Reset',
     submit: 'Submit',
+  },
+  hub: {
+    title: 'What would you like to learn?',
+    subtitle: 'Choose a technology path to get started',
+    comingSoon: 'Coming Soon',
+    database: {
+      title: 'Database',
+      description: 'Master SQL queries through DBA administration skills',
+    },
+    ai: {
+      title: 'AI / ML',
+      description: 'Learn core concepts of Artificial Intelligence and Machine Learning',
+    },
+    kubernetes: {
+      title: 'Kubernetes',
+      description: 'Learn container orchestration and cloud-native technologies',
+    },
   },
   nav: {
     home: 'Home',

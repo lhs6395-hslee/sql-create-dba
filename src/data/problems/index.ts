@@ -38,6 +38,7 @@ import { problem as i017 } from './intermediate/017-one-to-one-join';
 import { problem as i018 } from './intermediate/018-many-to-many';
 import { problem as i019 } from './intermediate/019-self-referencing';
 import { problem as i020 } from './intermediate/020-multi-table-erd';
+import { problem as i021 } from './intermediate/021-create-function';
 
 // Advanced
 import { problem as a001 } from './advanced/001-row-number';
@@ -55,6 +56,7 @@ import { problem as a012 } from './advanced/012-update-from';
 import { problem as a013 } from './advanced/013-create-table-as-select';
 import { problem as a014 } from './advanced/014-alter-table-advanced';
 import { problem as a015 } from './advanced/015-materialized-view';
+import { problem as a016 } from './advanced/016-table-returning-function';
 
 // Expert
 import { problem as e001 } from './expert/001-create-index';
@@ -73,6 +75,8 @@ import { problem as e013 } from './expert/013-create-schema';
 import { problem as e014 } from './expert/014-create-sequence';
 import { problem as e015 } from './expert/015-create-trigger';
 import { problem as e016 } from './expert/016-grant-revoke';
+import { problem as e017 } from './expert/017-create-function-procedure';
+import { problem as e018 } from './expert/018-function-security';
 
 // Database
 import { problem as d001 } from './database/001-vacuum-analyze';
@@ -88,11 +92,11 @@ const allProblems: Problem[] = [
   // Beginner
   b001, b002, b003, b004, b005, b006, b007, b008, b009, b010, b011, b012, b013, b014, b015,
   // Intermediate
-  i001, i002, i003, i004, i005, i006, i007, i008, i009, i010, i011, i012, i013, i014, i015, i016, i017, i018, i019, i020,
+  i001, i002, i003, i004, i005, i006, i007, i008, i009, i010, i011, i012, i013, i014, i015, i016, i017, i018, i019, i020, i021,
   // Advanced
-  a001, a002, a003, a004, a005, a006, a007, a008, a009, a010, a011, a012, a013, a014, a015,
+  a001, a002, a003, a004, a005, a006, a007, a008, a009, a010, a011, a012, a013, a014, a015, a016,
   // Expert
-  e001, e002, e003, e004, e005, e006, e007, e008, e009, e010, e011, e012, e013, e014, e015, e016,
+  e001, e002, e003, e004, e005, e006, e007, e008, e009, e010, e011, e012, e013, e014, e015, e016, e017, e018,
   // Database
   d001, d002, d003, d004, d005, d006, d007, d008,
 ];

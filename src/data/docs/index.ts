@@ -4337,6 +4337,257 @@ WHERE conrelid = 'products'::regclass;
 > **Practical tip**: During large data migrations, adding FK with \`NOT VALID\` first, loading data, then running \`VALIDATE\` significantly improves performance.`,
         },
       },
+      {
+        id: 'functions-basics',
+        title: { ko: '함수 기초', en: 'Function Basics' },
+        level: 'intermediate',
+        content: {
+          ko: `## 함수 기초 (Function Basics)
+
+SQL에서 **함수(Function)**란 입력값을 받아 특정 연산을 수행하고 결과를 반환하는 재사용 가능한 코드 블록입니다.
+
+### 내장 함수 vs 사용자 정의 함수
+
+| 구분 | 내장 함수 (Built-in) | 사용자 정의 함수 (UDF) |
+|------|---------------------|----------------------|
+| 정의 | DBMS가 기본 제공 | 사용자가 직접 작성 |
+| 예시 | COUNT(), SUM(), UPPER() | calc_discount_price() |
+| 수정 | 불가 | 자유롭게 수정 가능 |
+
+### 사용자 정의 함수란?
+
+반복적으로 사용되는 로직을 **한 번 정의**하고, SQL 문 내에서 **여러 번 호출**할 수 있습니다.
+
+\`\`\`sql
+-- PostgreSQL: 기본 함수 생성
+CREATE OR REPLACE FUNCTION calc_tax(price DECIMAL)
+RETURNS DECIMAL AS $$
+BEGIN
+  RETURN price * 0.1;  -- 10% 세금 계산
+END;
+$$ LANGUAGE plpgsql;
+
+-- 함수 호출 (SELECT에서 사용)
+SELECT name, price, calc_tax(price) AS tax
+FROM products;
+\`\`\`
+
+\`\`\`sql
+-- MySQL: 기본 함수 생성
+CREATE FUNCTION calc_tax(price DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+  RETURN price * 0.1;
+END;
+
+-- 함수 호출
+SELECT name, price, calc_tax(price) AS tax
+FROM products;
+\`\`\`
+
+### 함수의 구성 요소
+
+| 요소 | 설명 | 예시 |
+|------|------|------|
+| **이름** | 함수를 식별하는 이름 | \`calc_tax\` |
+| **매개변수** | 입력값 정의 | \`price DECIMAL\` |
+| **반환 타입** | 결과의 데이터 타입 | \`RETURNS DECIMAL\` |
+| **본문** | 실행할 로직 | \`BEGIN ... END\` |
+| **언어** | 작성 언어 (PG 전용) | \`LANGUAGE plpgsql\` |
+
+### 함수 사용 위치
+
+함수는 SQL의 다양한 위치에서 호출할 수 있습니다:
+
+\`\`\`sql
+-- 1. SELECT 절
+SELECT calc_tax(price) FROM products;
+
+-- 2. WHERE 절
+SELECT * FROM products WHERE calc_tax(price) > 5000;
+
+-- 3. ORDER BY 절
+SELECT * FROM products ORDER BY calc_tax(price) DESC;
+
+-- 4. INSERT 문
+INSERT INTO tax_records (product_id, tax_amount)
+SELECT id, calc_tax(price) FROM products;
+\`\`\`
+
+### DETERMINISTIC vs NOT DETERMINISTIC (MySQL)
+
+\`\`\`sql
+-- DETERMINISTIC: 같은 입력 → 항상 같은 결과
+CREATE FUNCTION calc_tax(price DECIMAL(10,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
+BEGIN RETURN price * 0.1; END;
+
+-- NOT DETERMINISTIC: 같은 입력 → 결과가 달라질 수 있음
+CREATE FUNCTION get_random_discount()
+RETURNS DECIMAL(5,2) NOT DETERMINISTIC
+BEGIN RETURN RAND() * 30; END;
+\`\`\`
+
+### 휘발성 분류 (PostgreSQL)
+
+| 분류 | 설명 | 용도 |
+|------|------|------|
+| **IMMUTABLE** | 항상 같은 결과 | 인덱스에 사용 가능 |
+| **STABLE** | 같은 트랜잭션 내 같은 결과 | 일반 조회 함수 |
+| **VOLATILE** (기본값) | 매번 결과가 다를 수 있음 | RANDOM(), NOW() 등 |
+
+\`\`\`sql
+-- IMMUTABLE 함수: 인덱스 생성 시 사용 가능
+CREATE OR REPLACE FUNCTION to_lower_name(name TEXT)
+RETURNS TEXT AS $$
+BEGIN RETURN LOWER(name); END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE INDEX idx_lower_name ON customers (to_lower_name(name));
+\`\`\`
+
+### 함수 관리
+
+\`\`\`sql
+-- 함수 삭제
+DROP FUNCTION IF EXISTS calc_tax(DECIMAL);
+
+-- 함수 목록 조회 (PostgreSQL)
+SELECT routine_name, data_type
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_type = 'FUNCTION';
+
+-- 함수 목록 조회 (MySQL)
+SHOW FUNCTION STATUS WHERE Db = DATABASE();
+\`\`\`
+
+> **핵심 정리**: 함수는 \`SELECT\` 문 안에서 호출할 수 있으며, 반드시 값을 반환해야 합니다. 복잡한 비즈니스 로직을 캡슐화하여 SQL을 간결하게 만드는 데 유용합니다.`,
+          en: `## Function Basics
+
+In SQL, a **function** is a reusable code block that accepts input, performs an operation, and returns a result.
+
+### Built-in Functions vs User-Defined Functions
+
+| Type | Built-in | User-Defined (UDF) |
+|------|----------|-------------------|
+| Definition | Provided by DBMS | Written by user |
+| Examples | COUNT(), SUM(), UPPER() | calc_discount_price() |
+| Modifiable | No | Freely modifiable |
+
+### What Are User-Defined Functions?
+
+Define reusable logic **once** and call it **multiple times** within SQL statements.
+
+\`\`\`sql
+-- PostgreSQL: Basic function creation
+CREATE OR REPLACE FUNCTION calc_tax(price DECIMAL)
+RETURNS DECIMAL AS $$
+BEGIN
+  RETURN price * 0.1;  -- 10% tax calculation
+END;
+$$ LANGUAGE plpgsql;
+
+-- Call the function (use in SELECT)
+SELECT name, price, calc_tax(price) AS tax
+FROM products;
+\`\`\`
+
+\`\`\`sql
+-- MySQL: Basic function creation
+CREATE FUNCTION calc_tax(price DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+  RETURN price * 0.1;
+END;
+
+-- Call the function
+SELECT name, price, calc_tax(price) AS tax
+FROM products;
+\`\`\`
+
+### Function Components
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| **Name** | Identifies the function | \`calc_tax\` |
+| **Parameters** | Input definitions | \`price DECIMAL\` |
+| **Return type** | Result data type | \`RETURNS DECIMAL\` |
+| **Body** | Logic to execute | \`BEGIN ... END\` |
+| **Language** | Language (PG only) | \`LANGUAGE plpgsql\` |
+
+### Where Functions Can Be Used
+
+Functions can be called in various SQL positions:
+
+\`\`\`sql
+-- 1. SELECT clause
+SELECT calc_tax(price) FROM products;
+
+-- 2. WHERE clause
+SELECT * FROM products WHERE calc_tax(price) > 5000;
+
+-- 3. ORDER BY clause
+SELECT * FROM products ORDER BY calc_tax(price) DESC;
+
+-- 4. INSERT statement
+INSERT INTO tax_records (product_id, tax_amount)
+SELECT id, calc_tax(price) FROM products;
+\`\`\`
+
+### DETERMINISTIC vs NOT DETERMINISTIC (MySQL)
+
+\`\`\`sql
+-- DETERMINISTIC: same input → always same result
+CREATE FUNCTION calc_tax(price DECIMAL(10,2))
+RETURNS DECIMAL(10,2) DETERMINISTIC
+BEGIN RETURN price * 0.1; END;
+
+-- NOT DETERMINISTIC: same input → result may vary
+CREATE FUNCTION get_random_discount()
+RETURNS DECIMAL(5,2) NOT DETERMINISTIC
+BEGIN RETURN RAND() * 30; END;
+\`\`\`
+
+### Volatility Categories (PostgreSQL)
+
+| Category | Description | Use Case |
+|----------|-------------|----------|
+| **IMMUTABLE** | Always same result | Can be used in indexes |
+| **STABLE** | Same result within transaction | General query functions |
+| **VOLATILE** (default) | Result may vary | RANDOM(), NOW(), etc. |
+
+\`\`\`sql
+-- IMMUTABLE function: can be used in index creation
+CREATE OR REPLACE FUNCTION to_lower_name(name TEXT)
+RETURNS TEXT AS $$
+BEGIN RETURN LOWER(name); END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE INDEX idx_lower_name ON customers (to_lower_name(name));
+\`\`\`
+
+### Managing Functions
+
+\`\`\`sql
+-- Drop function
+DROP FUNCTION IF EXISTS calc_tax(DECIMAL);
+
+-- List functions (PostgreSQL)
+SELECT routine_name, data_type
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_type = 'FUNCTION';
+
+-- List functions (MySQL)
+SHOW FUNCTION STATUS WHERE Db = DATABASE();
+\`\`\`
+
+> **Key takeaway**: Functions can be called within \`SELECT\` statements and must return a value. They're useful for encapsulating complex business logic to keep SQL concise.`,
+        },
+      },
     ],
   },
 
@@ -5793,6 +6044,433 @@ CREATE INDEX idx_user_id ON events (user_id);
 > **Design tip**: JSON is ideal for schema-flexible data (event logs, settings, metadata). Data that's frequently searched or joined should be separated into regular columns for better performance.`,
         },
       },
+      {
+        id: 'advanced-functions',
+        title: { ko: '심화 함수와 프로시저', en: 'Advanced Functions & Procedures' },
+        level: 'advanced',
+        content: {
+          ko: `## 심화 함수와 프로시저
+
+Intermediate에서 기본 함수를 배웠다면, 이제 **테이블 반환 함수**, **프로시저**, **제어문**을 학습합니다.
+
+### 테이블 반환 함수 (PostgreSQL)
+
+여러 행을 반환하는 함수로, 마치 테이블처럼 \`FROM\` 절에서 사용할 수 있습니다.
+
+\`\`\`sql
+-- RETURNS TABLE: 여러 행 반환
+CREATE OR REPLACE FUNCTION get_category_sales(cat_id INTEGER)
+RETURNS TABLE (
+  product_name VARCHAR,
+  total_sold BIGINT,
+  revenue DECIMAL
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT p.name, SUM(oi.quantity), SUM(oi.quantity * oi.unit_price)
+  FROM products p
+  JOIN order_items oi ON p.id = oi.product_id
+  WHERE p.category_id = cat_id
+  GROUP BY p.name
+  ORDER BY SUM(oi.quantity * oi.unit_price) DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 테이블처럼 사용
+SELECT * FROM get_category_sales(1);
+\`\`\`
+
+### SETOF 반환 (PostgreSQL)
+
+기존 테이블의 행을 그대로 반환할 수도 있습니다.
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION get_premium_customers()
+RETURNS SETOF customers AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM customers WHERE is_premium = true;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_premium_customers();
+\`\`\`
+
+### 프로시저 (Stored Procedure) 기초
+
+프로시저는 함수와 유사하지만 **값을 반환하지 않으며**, **트랜잭션 제어(COMMIT/ROLLBACK)**가 가능합니다.
+
+\`\`\`sql
+-- PostgreSQL 프로시저 (PG 11+)
+CREATE OR REPLACE PROCEDURE update_premium_status()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- 총 주문금액 100만원 이상 고객을 프리미엄으로 변경
+  UPDATE customers SET is_premium = true
+  WHERE id IN (
+    SELECT customer_id FROM orders
+    GROUP BY customer_id
+    HAVING SUM(total_amount) >= 1000000
+  );
+  COMMIT;
+END;
+$$;
+
+-- 프로시저 호출 (CALL 사용)
+CALL update_premium_status();
+\`\`\`
+
+\`\`\`sql
+-- MySQL 프로시저
+DELIMITER //
+CREATE PROCEDURE update_premium_status()
+BEGIN
+  UPDATE customers SET is_premium = true
+  WHERE id IN (
+    SELECT customer_id FROM orders
+    GROUP BY customer_id
+    HAVING SUM(total_amount) >= 1000000
+  );
+  COMMIT;
+END //
+DELIMITER ;
+
+CALL update_premium_status();
+\`\`\`
+
+### 함수 vs 프로시저 핵심 차이
+
+| 구분 | 함수 (Function) | 프로시저 (Procedure) |
+|------|----------------|---------------------|
+| 반환값 | 반드시 값 반환 (RETURNS) | 반환값 없음 |
+| SQL 내 사용 | SELECT, WHERE 등에서 사용 | \`CALL\`로만 호출 |
+| 트랜잭션 제어 | 불가 | COMMIT/ROLLBACK 가능 |
+| 용도 | 계산, 변환, 조회 | 배치 작업, 비즈니스 로직 |
+
+### 매개변수 모드 (IN, OUT, INOUT)
+
+\`\`\`sql
+-- PostgreSQL: OUT 매개변수
+CREATE OR REPLACE FUNCTION get_customer_summary(
+  cust_id INTEGER,
+  OUT order_count BIGINT,
+  OUT total_spent DECIMAL,
+  OUT avg_order DECIMAL
+) AS $$
+BEGIN
+  SELECT COUNT(*), COALESCE(SUM(total_amount), 0),
+         COALESCE(AVG(total_amount), 0)
+  INTO order_count, total_spent, avg_order
+  FROM orders WHERE customer_id = cust_id;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_customer_summary(1);
+-- 결과: order_count | total_spent | avg_order
+\`\`\`
+
+\`\`\`sql
+-- MySQL: OUT 매개변수 (프로시저)
+DELIMITER //
+CREATE PROCEDURE get_customer_summary(
+  IN cust_id INT,
+  OUT order_count INT,
+  OUT total_spent DECIMAL(10,2)
+)
+BEGIN
+  SELECT COUNT(*), COALESCE(SUM(total_amount), 0)
+  INTO order_count, total_spent
+  FROM orders WHERE customer_id = cust_id;
+END //
+DELIMITER ;
+
+CALL get_customer_summary(1, @cnt, @total);
+SELECT @cnt AS order_count, @total AS total_spent;
+\`\`\`
+
+### 제어문 기초
+
+함수/프로시저 본문에서 사용할 수 있는 제어 흐름입니다.
+
+\`\`\`sql
+-- IF / ELSIF / ELSE (PostgreSQL)
+CREATE OR REPLACE FUNCTION get_price_category(price DECIMAL)
+RETURNS VARCHAR AS $$
+BEGIN
+  IF price >= 100000 THEN
+    RETURN '고가';
+  ELSIF price >= 50000 THEN
+    RETURN '중가';
+  ELSE
+    RETURN '저가';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT name, price, get_price_category(price)
+FROM products;
+\`\`\`
+
+\`\`\`sql
+-- MySQL: IF / ELSEIF / ELSE
+CREATE FUNCTION get_price_category(price DECIMAL(10,2))
+RETURNS VARCHAR(10)
+DETERMINISTIC
+BEGIN
+  IF price >= 100000 THEN
+    RETURN '고가';
+  ELSEIF price >= 50000 THEN
+    RETURN '중가';
+  ELSE
+    RETURN '저가';
+  END IF;
+END;
+\`\`\`
+
+> **참고**: PostgreSQL은 \`ELSIF\`, MySQL은 \`ELSEIF\`를 사용합니다 (철자 차이 주의).
+
+### 예외 처리 기초
+
+\`\`\`sql
+-- PostgreSQL: EXCEPTION 블록
+CREATE OR REPLACE FUNCTION safe_divide(a DECIMAL, b DECIMAL)
+RETURNS DECIMAL AS $$
+BEGIN
+  RETURN a / b;
+EXCEPTION
+  WHEN division_by_zero THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- MySQL: HANDLER
+DELIMITER //
+CREATE FUNCTION safe_divide(a DECIMAL(10,2), b DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+  DECLARE result DECIMAL(10,2);
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '22012' SET result = NULL;
+  SET result = a / b;
+  RETURN result;
+END //
+DELIMITER ;
+\`\`\`
+
+> **실무 팁**: 함수는 SELECT에서 바로 사용할 수 있어 편리하고, 프로시저는 트랜잭션 제어가 필요한 배치 작업에 적합합니다.`,
+          en: `## Advanced Functions & Procedures
+
+After learning basic functions in Intermediate, now learn **table-returning functions**, **procedures**, and **control flow**.
+
+### Table-Returning Functions (PostgreSQL)
+
+Functions that return multiple rows, usable in \`FROM\` clause like a table.
+
+\`\`\`sql
+-- RETURNS TABLE: return multiple rows
+CREATE OR REPLACE FUNCTION get_category_sales(cat_id INTEGER)
+RETURNS TABLE (
+  product_name VARCHAR,
+  total_sold BIGINT,
+  revenue DECIMAL
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT p.name, SUM(oi.quantity), SUM(oi.quantity * oi.unit_price)
+  FROM products p
+  JOIN order_items oi ON p.id = oi.product_id
+  WHERE p.category_id = cat_id
+  GROUP BY p.name
+  ORDER BY SUM(oi.quantity * oi.unit_price) DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Use like a table
+SELECT * FROM get_category_sales(1);
+\`\`\`
+
+### SETOF Return (PostgreSQL)
+
+Return rows matching an existing table type.
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION get_premium_customers()
+RETURNS SETOF customers AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM customers WHERE is_premium = true;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_premium_customers();
+\`\`\`
+
+### Stored Procedure Basics
+
+Procedures are similar to functions but **don't return values** and support **transaction control (COMMIT/ROLLBACK)**.
+
+\`\`\`sql
+-- PostgreSQL procedure (PG 11+)
+CREATE OR REPLACE PROCEDURE update_premium_status()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Upgrade customers with 1M+ total orders to premium
+  UPDATE customers SET is_premium = true
+  WHERE id IN (
+    SELECT customer_id FROM orders
+    GROUP BY customer_id
+    HAVING SUM(total_amount) >= 1000000
+  );
+  COMMIT;
+END;
+$$;
+
+-- Call procedure (uses CALL)
+CALL update_premium_status();
+\`\`\`
+
+\`\`\`sql
+-- MySQL procedure
+DELIMITER //
+CREATE PROCEDURE update_premium_status()
+BEGIN
+  UPDATE customers SET is_premium = true
+  WHERE id IN (
+    SELECT customer_id FROM orders
+    GROUP BY customer_id
+    HAVING SUM(total_amount) >= 1000000
+  );
+  COMMIT;
+END //
+DELIMITER ;
+
+CALL update_premium_status();
+\`\`\`
+
+### Function vs Procedure Key Differences
+
+| Aspect | Function | Procedure |
+|--------|----------|-----------|
+| Return value | Must return (RETURNS) | No return value |
+| Use in SQL | SELECT, WHERE, etc. | CALL only |
+| Transaction control | Not allowed | COMMIT/ROLLBACK allowed |
+| Use cases | Calculations, transforms | Batch jobs, business logic |
+
+### Parameter Modes (IN, OUT, INOUT)
+
+\`\`\`sql
+-- PostgreSQL: OUT parameters
+CREATE OR REPLACE FUNCTION get_customer_summary(
+  cust_id INTEGER,
+  OUT order_count BIGINT,
+  OUT total_spent DECIMAL,
+  OUT avg_order DECIMAL
+) AS $$
+BEGIN
+  SELECT COUNT(*), COALESCE(SUM(total_amount), 0),
+         COALESCE(AVG(total_amount), 0)
+  INTO order_count, total_spent, avg_order
+  FROM orders WHERE customer_id = cust_id;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_customer_summary(1);
+-- Result: order_count | total_spent | avg_order
+\`\`\`
+
+\`\`\`sql
+-- MySQL: OUT parameters (procedure)
+DELIMITER //
+CREATE PROCEDURE get_customer_summary(
+  IN cust_id INT,
+  OUT order_count INT,
+  OUT total_spent DECIMAL(10,2)
+)
+BEGIN
+  SELECT COUNT(*), COALESCE(SUM(total_amount), 0)
+  INTO order_count, total_spent
+  FROM orders WHERE customer_id = cust_id;
+END //
+DELIMITER ;
+
+CALL get_customer_summary(1, @cnt, @total);
+SELECT @cnt AS order_count, @total AS total_spent;
+\`\`\`
+
+### Control Flow Basics
+
+Control flow structures available within function/procedure bodies.
+
+\`\`\`sql
+-- IF / ELSIF / ELSE (PostgreSQL)
+CREATE OR REPLACE FUNCTION get_price_category(price DECIMAL)
+RETURNS VARCHAR AS $$
+BEGIN
+  IF price >= 100000 THEN
+    RETURN 'Premium';
+  ELSIF price >= 50000 THEN
+    RETURN 'Mid-range';
+  ELSE
+    RETURN 'Budget';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT name, price, get_price_category(price)
+FROM products;
+\`\`\`
+
+\`\`\`sql
+-- MySQL: IF / ELSEIF / ELSE
+CREATE FUNCTION get_price_category(price DECIMAL(10,2))
+RETURNS VARCHAR(10)
+DETERMINISTIC
+BEGIN
+  IF price >= 100000 THEN
+    RETURN 'Premium';
+  ELSEIF price >= 50000 THEN
+    RETURN 'Mid-range';
+  ELSE
+    RETURN 'Budget';
+  END IF;
+END;
+\`\`\`
+
+> **Note**: PostgreSQL uses \`ELSIF\`, MySQL uses \`ELSEIF\` (spelling difference).
+
+### Exception Handling Basics
+
+\`\`\`sql
+-- PostgreSQL: EXCEPTION block
+CREATE OR REPLACE FUNCTION safe_divide(a DECIMAL, b DECIMAL)
+RETURNS DECIMAL AS $$
+BEGIN
+  RETURN a / b;
+EXCEPTION
+  WHEN division_by_zero THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- MySQL: HANDLER
+DELIMITER //
+CREATE FUNCTION safe_divide(a DECIMAL(10,2), b DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+  DECLARE result DECIMAL(10,2);
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '22012' SET result = NULL;
+  SET result = a / b;
+  RETURN result;
+END //
+DELIMITER ;
+\`\`\`
+
+> **Practical tip**: Functions are convenient for direct use in SELECT, while procedures are suited for batch operations requiring transaction control.`,
+        },
+      },
     ],
   },
 
@@ -7202,7 +7880,158 @@ BEGIN
 END;
 \`\`\`
 
-> MySQL에서는 \`DELIMITER //\`로 구분자를 변경한 후 프로시저/함수를 작성하고, 마지막에 \`DELIMITER ;\`로 복원합니다. 이는 본문 내 세미콜론과 문장 종결자를 구분하기 위함입니다.`,
+> MySQL에서는 \`DELIMITER //\`로 구분자를 변경한 후 프로시저/함수를 작성하고, 마지막에 \`DELIMITER ;\`로 복원합니다. 이는 본문 내 세미콜론과 문장 종결자를 구분하기 위함입니다.
+
+## 동적 SQL (Dynamic SQL)
+
+런타임에 SQL 문을 문자열로 조합하여 실행하는 기법입니다.
+
+### PostgreSQL: EXECUTE
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION dynamic_search(
+  table_name TEXT,
+  column_name TEXT,
+  search_value TEXT
+) RETURNS SETOF RECORD AS $$
+BEGIN
+  RETURN QUERY EXECUTE
+    format('SELECT * FROM %I WHERE %I = $1', table_name, column_name)
+    USING search_value;
+END;
+$$ LANGUAGE plpgsql;
+\`\`\`
+
+> **보안 주의**: \`format('%I', ...)\`는 식별자를 안전하게 이스케이프합니다. 절대 문자열 연결(\`||\`)로 식별자를 조합하지 마세요 — **SQL 인젝션** 위험이 있습니다.
+
+### MySQL: PREPARE / EXECUTE
+
+\`\`\`sql
+DELIMITER //
+CREATE PROCEDURE dynamic_search(
+  IN tbl_name VARCHAR(100),
+  IN col_name VARCHAR(100),
+  IN search_val VARCHAR(200)
+)
+BEGIN
+  SET @sql = CONCAT('SELECT * FROM ', tbl_name, ' WHERE ', col_name, ' = ?');
+  PREPARE stmt FROM @sql;
+  SET @val = search_val;
+  EXECUTE stmt USING @val;
+  DEALLOCATE PREPARE stmt;
+END //
+DELIMITER ;
+\`\`\`
+
+## 재귀 함수와 반복 패턴
+
+### FOR EACH ROW 처리 (커서 심화)
+
+\`\`\`sql
+-- PostgreSQL: 커서를 사용한 배치 처리
+CREATE OR REPLACE PROCEDURE batch_update_prices(increase_rate DECIMAL)
+LANGUAGE plpgsql AS $$
+DECLARE
+  rec RECORD;
+  updated_count INTEGER := 0;
+BEGIN
+  FOR rec IN SELECT id, price FROM products WHERE price < 10000
+  LOOP
+    UPDATE products SET price = price * (1 + increase_rate / 100)
+    WHERE id = rec.id;
+    updated_count := updated_count + 1;
+    -- 100건마다 커밋
+    IF updated_count % 100 = 0 THEN
+      COMMIT;
+    END IF;
+  END LOOP;
+  COMMIT;
+  RAISE NOTICE '총 % 건 업데이트', updated_count;
+END;
+$$;
+\`\`\`
+
+### 재귀적 데이터 처리
+
+\`\`\`sql
+-- 카테고리 트리의 전체 경로를 반환하는 함수
+CREATE OR REPLACE FUNCTION get_category_path(cat_id INTEGER)
+RETURNS TEXT AS $$
+DECLARE
+  result TEXT := '';
+  current_id INTEGER := cat_id;
+  current_name TEXT;
+  parent INTEGER;
+BEGIN
+  LOOP
+    SELECT name, parent_id INTO current_name, parent
+    FROM categories WHERE id = current_id;
+    EXIT WHEN current_name IS NULL;
+    IF result = '' THEN
+      result := current_name;
+    ELSE
+      result := current_name || ' > ' || result;
+    END IF;
+    EXIT WHEN parent IS NULL;
+    current_id := parent;
+  END LOOP;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT id, name, get_category_path(id) AS full_path
+FROM categories;
+\`\`\`
+
+## 보안 컨텍스트
+
+### SECURITY DEFINER vs SECURITY INVOKER (PostgreSQL)
+
+| 옵션 | 설명 | 용도 |
+|------|------|------|
+| **SECURITY INVOKER** (기본값) | 호출자 권한으로 실행 | 일반 함수 |
+| **SECURITY DEFINER** | 생성자 권한으로 실행 | 권한 상승이 필요한 함수 |
+
+\`\`\`sql
+-- 일반 사용자가 특정 통계만 조회할 수 있도록 허용
+CREATE OR REPLACE FUNCTION get_sales_summary()
+RETURNS TABLE (month TEXT, total DECIMAL)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT to_char(order_date, 'YYYY-MM'), SUM(total_amount)
+  FROM orders GROUP BY 1 ORDER BY 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 일반 사용자에게 함수 실행 권한만 부여
+GRANT EXECUTE ON FUNCTION get_sales_summary() TO report_user;
+\`\`\`
+
+> **보안 팁**: \`SECURITY DEFINER\` 함수는 반드시 \`SET search_path\`를 지정하여 search_path 공격을 방지하세요.
+
+## 성능 최적화 팁
+
+| 패턴 | 설명 |
+|------|------|
+| \`LANGUAGE sql\` 우선 | 단순 함수는 SQL 함수로 작성 (인라인 최적화 가능) |
+| \`IMMUTABLE\` 활용 | 결과가 변하지 않는 함수는 IMMUTABLE로 선언 |
+| \`STABLE\` 지정 | 트랜잭션 내 일관된 결과의 함수 |
+| 커서 대신 집합 연산 | 가능하면 RETURN QUERY 사용 (성능 우수) |
+| \`STRICT\` 선언 | NULL 입력 시 자동으로 NULL 반환 (불필요한 실행 방지) |
+
+\`\`\`sql
+-- STRICT: 입력이 NULL이면 함수를 실행하지 않고 NULL 반환
+CREATE OR REPLACE FUNCTION safe_upper(input TEXT)
+RETURNS TEXT AS $$
+BEGIN RETURN UPPER(input); END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+-- NULL 입력 시 함수 본문이 실행되지 않음
+SELECT safe_upper(NULL);  -- 결과: NULL (함수 미실행)
+\`\`\``,
           en: `## Functions
 
 Stored code blocks that accept input and return results. Can be called within SELECT statements.
@@ -7465,7 +8294,158 @@ BEGIN
 END;
 \`\`\`
 
-> In MySQL, use \`DELIMITER //\` to change the delimiter before writing procedures/functions, then restore with \`DELIMITER ;\`. This distinguishes semicolons within the body from statement terminators.`,
+> In MySQL, use \`DELIMITER //\` to change the delimiter before writing procedures/functions, then restore with \`DELIMITER ;\`. This distinguishes semicolons within the body from statement terminators.
+
+## Dynamic SQL
+
+A technique for building and executing SQL strings at runtime.
+
+### PostgreSQL: EXECUTE
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION dynamic_search(
+  table_name TEXT,
+  column_name TEXT,
+  search_value TEXT
+) RETURNS SETOF RECORD AS $$
+BEGIN
+  RETURN QUERY EXECUTE
+    format('SELECT * FROM %I WHERE %I = $1', table_name, column_name)
+    USING search_value;
+END;
+$$ LANGUAGE plpgsql;
+\`\`\`
+
+> **Security warning**: \`format('%I', ...)\` safely escapes identifiers. Never concatenate identifiers with \`||\` — this creates **SQL injection** vulnerabilities.
+
+### MySQL: PREPARE / EXECUTE
+
+\`\`\`sql
+DELIMITER //
+CREATE PROCEDURE dynamic_search(
+  IN tbl_name VARCHAR(100),
+  IN col_name VARCHAR(100),
+  IN search_val VARCHAR(200)
+)
+BEGIN
+  SET @sql = CONCAT('SELECT * FROM ', tbl_name, ' WHERE ', col_name, ' = ?');
+  PREPARE stmt FROM @sql;
+  SET @val = search_val;
+  EXECUTE stmt USING @val;
+  DEALLOCATE PREPARE stmt;
+END //
+DELIMITER ;
+\`\`\`
+
+## Recursive Functions & Iteration Patterns
+
+### FOR EACH ROW Processing (Advanced Cursors)
+
+\`\`\`sql
+-- PostgreSQL: Batch processing with cursors
+CREATE OR REPLACE PROCEDURE batch_update_prices(increase_rate DECIMAL)
+LANGUAGE plpgsql AS $$
+DECLARE
+  rec RECORD;
+  updated_count INTEGER := 0;
+BEGIN
+  FOR rec IN SELECT id, price FROM products WHERE price < 10000
+  LOOP
+    UPDATE products SET price = price * (1 + increase_rate / 100)
+    WHERE id = rec.id;
+    updated_count := updated_count + 1;
+    -- Commit every 100 rows
+    IF updated_count % 100 = 0 THEN
+      COMMIT;
+    END IF;
+  END LOOP;
+  COMMIT;
+  RAISE NOTICE 'Updated % rows total', updated_count;
+END;
+$$;
+\`\`\`
+
+### Recursive Data Processing
+
+\`\`\`sql
+-- Function returning full category tree path
+CREATE OR REPLACE FUNCTION get_category_path(cat_id INTEGER)
+RETURNS TEXT AS $$
+DECLARE
+  result TEXT := '';
+  current_id INTEGER := cat_id;
+  current_name TEXT;
+  parent INTEGER;
+BEGIN
+  LOOP
+    SELECT name, parent_id INTO current_name, parent
+    FROM categories WHERE id = current_id;
+    EXIT WHEN current_name IS NULL;
+    IF result = '' THEN
+      result := current_name;
+    ELSE
+      result := current_name || ' > ' || result;
+    END IF;
+    EXIT WHEN parent IS NULL;
+    current_id := parent;
+  END LOOP;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT id, name, get_category_path(id) AS full_path
+FROM categories;
+\`\`\`
+
+## Security Context
+
+### SECURITY DEFINER vs SECURITY INVOKER (PostgreSQL)
+
+| Option | Description | Use Case |
+|--------|-------------|----------|
+| **SECURITY INVOKER** (default) | Runs with caller's privileges | General functions |
+| **SECURITY DEFINER** | Runs with creator's privileges | Privilege escalation |
+
+\`\`\`sql
+-- Allow regular users to view specific statistics only
+CREATE OR REPLACE FUNCTION get_sales_summary()
+RETURNS TABLE (month TEXT, total DECIMAL)
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT to_char(order_date, 'YYYY-MM'), SUM(total_amount)
+  FROM orders GROUP BY 1 ORDER BY 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Grant only function execution to regular user
+GRANT EXECUTE ON FUNCTION get_sales_summary() TO report_user;
+\`\`\`
+
+> **Security tip**: Always set \`search_path\` in \`SECURITY DEFINER\` functions to prevent search_path attacks.
+
+## Performance Optimization Tips
+
+| Pattern | Description |
+|---------|-------------|
+| Prefer \`LANGUAGE sql\` | Simple functions as SQL functions (can be inlined) |
+| Use \`IMMUTABLE\` | Declare pure functions as IMMUTABLE |
+| Set \`STABLE\` | For functions with consistent results within a transaction |
+| Set operations over cursors | Use RETURN QUERY when possible (better performance) |
+| Declare \`STRICT\` | Auto-return NULL for NULL inputs (skip unnecessary execution) |
+
+\`\`\`sql
+-- STRICT: Automatically returns NULL when input is NULL
+CREATE OR REPLACE FUNCTION safe_upper(input TEXT)
+RETURNS TEXT AS $$
+BEGIN RETURN UPPER(input); END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+-- NULL input skips function body entirely
+SELECT safe_upper(NULL);  -- Result: NULL (function not executed)
+\`\`\``,
         },
       },
       {

@@ -1,98 +1,131 @@
 'use client';
 
-import { useTranslation } from '@/lib/i18n';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocaleStore } from '@/stores/locale-store';
-import { LEVEL_CONFIGS } from '@/types/problem';
-import LevelCard from '@/components/progress/LevelCard';
-import { Database, Terminal, BookOpen, Trophy } from 'lucide-react';
-import ArchitectureDiagram from '@/components/home/ArchitectureDiagram';
-import ExecutionFlowDiagram from '@/components/home/ExecutionFlowDiagram';
-import ERDDiagram from '@/components/home/ERDDiagram';
+import { useTranslation } from '@/lib/i18n';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Database, Brain, Container, Monitor } from 'lucide-react';
 
-export default function HomePage() {
+const techPaths = [
+  {
+    id: 'database',
+    icon: Database,
+    gradient: 'from-emerald-500 to-blue-600',
+    cardGradient: 'from-emerald-500/20 to-blue-600/5 hover:from-emerald-500/30 hover:to-blue-600/10',
+    iconColor: 'text-emerald-500',
+    href: '/database',
+    comingSoon: false,
+  },
+  {
+    id: 'ai',
+    icon: Brain,
+    gradient: 'from-purple-500 to-pink-600',
+    cardGradient: 'from-purple-500/20 to-pink-600/5 hover:from-purple-500/30 hover:to-pink-600/10',
+    iconColor: 'text-purple-500',
+    href: null,
+    comingSoon: true,
+  },
+  {
+    id: 'kubernetes',
+    icon: Container,
+    gradient: 'from-blue-500 to-cyan-600',
+    cardGradient: 'from-blue-500/20 to-cyan-600/5 hover:from-blue-500/30 hover:to-cyan-600/10',
+    iconColor: 'text-blue-500',
+    href: null,
+    comingSoon: true,
+  },
+] as const;
+
+export default function HubPage() {
+  const router = useRouter();
   const { t } = useTranslation();
   const locale = useLocaleStore((s) => s.locale);
+  const [clickedId, setClickedId] = useState<string | null>(null);
+
+  const handleClick = (path: typeof techPaths[number]) => {
+    if (path.comingSoon) {
+      setClickedId(path.id);
+      setTimeout(() => setClickedId(null), 2000);
+      return;
+    }
+    if (path.href) {
+      router.push(path.href);
+    }
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-12">
+    <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)]">
       {/* Hero Section */}
-      <section className="text-center space-y-4 py-12">
+      <section className="text-center space-y-4 mb-16">
         <div className="flex justify-center">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 shadow-lg">
-            <Database className="h-8 w-8 text-white" />
+          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+            <Monitor className="h-8 w-8 text-white" />
           </div>
         </div>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          {t('home.hero.title')}
+          {t('common.appName')}
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          {t('home.hero.subtitle')}
+          {t('hub.title')}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {t('hub.subtitle')}
         </p>
       </section>
 
-      {/* Features */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-        <div className="flex flex-col items-center text-center p-6 rounded-xl bg-muted/30 space-y-3">
-          <Terminal className="h-8 w-8 text-emerald-500" />
-          <h3 className="font-semibold">
-            {locale === 'ko' ? '실제 DB 실행' : 'Real DB Execution'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {locale === 'ko'
-              ? 'PostgreSQL과 MySQL에서 직접 SQL을 실행하고 결과를 확인합니다'
-              : 'Execute SQL directly on PostgreSQL and MySQL and see real results'}
-          </p>
-        </div>
-        <div className="flex flex-col items-center text-center p-6 rounded-xl bg-muted/30 space-y-3">
-          <BookOpen className="h-8 w-8 text-blue-500" />
-          <h3 className="font-semibold">
-            {locale === 'ko' ? '단계별 학습' : 'Step-by-Step Learning'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {locale === 'ko'
-              ? '초보부터 전문가까지 체계적인 커리큘럼으로 학습합니다'
-              : 'Learn with a structured curriculum from beginner to expert'}
-          </p>
-        </div>
-        <div className="flex flex-col items-center text-center p-6 rounded-xl bg-muted/30 space-y-3">
-          <Trophy className="h-8 w-8 text-amber-500" />
-          <h3 className="font-semibold">
-            {locale === 'ko' ? '즉시 채점' : 'Instant Grading'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {locale === 'ko'
-              ? '쿼리 결과를 자동으로 채점하고 상세한 해설을 제공합니다'
-              : 'Automatically grade your queries and get detailed explanations'}
-          </p>
-        </div>
-      </section>
+      {/* Tech Path Cards */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
+        {techPaths.map((path) => {
+          const Icon = path.icon;
+          const titleKey = `hub.${path.id}.title` as const;
+          const descKey = `hub.${path.id}.description` as const;
 
-      {/* Architecture Diagram */}
-      <section className="max-w-4xl mx-auto">
-        <ArchitectureDiagram locale={locale} />
-      </section>
+          return (
+            <div key={path.id} onClick={() => handleClick(path)} className="cursor-pointer">
+              <Card className={`relative overflow-hidden group transition-all hover:shadow-lg hover:-translate-y-1 ${path.comingSoon ? 'opacity-70' : ''}`}>
+                <div className={`absolute inset-0 bg-gradient-to-br ${path.cardGradient} transition-all`} />
+                <CardContent className="relative p-8 flex flex-col items-center text-center space-y-4">
+                  {/* Coming Soon Badge */}
+                  {path.comingSoon && (
+                    <Badge
+                      variant="secondary"
+                      className={`absolute top-3 right-3 text-[10px] transition-all ${
+                        clickedId === path.id
+                          ? 'bg-amber-500/20 text-amber-600 scale-110'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {t('hub.comingSoon')}
+                    </Badge>
+                  )}
 
-      {/* Execution Flow Diagram */}
-      <section className="max-w-4xl mx-auto">
-        <ExecutionFlowDiagram locale={locale} />
-      </section>
+                  {/* Icon */}
+                  <div className={`flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${path.gradient} shadow-md`}>
+                    <Icon className="h-8 w-8 text-white" />
+                  </div>
 
-      {/* ERD Diagram */}
-      <section className="max-w-4xl mx-auto">
-        <ERDDiagram locale={locale} />
-      </section>
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="font-bold text-xl">{t(titleKey)}</h3>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {t(descKey)}
+                    </p>
+                  </div>
 
-      {/* Level Cards */}
-      <section className="space-y-6 max-w-4xl mx-auto">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold">{t('home.levelSection.title')}</h2>
-          <p className="text-muted-foreground">{t('home.levelSection.subtitle')}</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {LEVEL_CONFIGS.map((config) => (
-            <LevelCard key={config.id} config={config} />
-          ))}
-        </div>
+                  {/* Status indicator */}
+                  {!path.comingSoon && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {locale === 'ko' ? '학습 가능' : 'Available'}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
       </section>
     </div>
   );

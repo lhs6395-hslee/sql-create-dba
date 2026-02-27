@@ -12,7 +12,8 @@ export type QuizCategory =
   | 'storage'
   | 'concurrency'
   | 'security'
-  | 'distributed';
+  | 'distributed'
+  | 'functions-procedures';
 
 export interface OXQuestion {
   id: string;
@@ -62,6 +63,7 @@ export const quizCategories: {
   { id: 'concurrency', name: { ko: '동시성 제어', en: 'Concurrency' }, icon: '🔀' },
   { id: 'security', name: { ko: '보안', en: 'Security' }, icon: '🛡️' },
   { id: 'distributed', name: { ko: '분산 DB', en: 'Distributed DB' }, icon: '🌐' },
+  { id: 'functions-procedures', name: { ko: '함수와 프로시저', en: 'Functions & Procedures' }, icon: '⚡' },
 ];
 
 // ─── OX (True/False) Questions ───
@@ -493,6 +495,85 @@ export const oxQuestions: OXQuestion[] = [
       en: 'In 2PC, if all participants vote YES (Prepare success), the Coordinator decides COMMIT. If any votes NO, it issues ROLLBACK.',
     },
   },
+  // Functions & Procedures
+  {
+    id: 'ox-32',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'SQL 함수(Function)는 반드시 값을 반환해야 하지만, 프로시저(Procedure)는 반환값이 없다.',
+      en: 'SQL functions must return a value, but procedures do not have a return value.',
+    },
+    answer: true,
+    explanation: {
+      ko: '함수는 RETURNS 절로 반환 타입을 반드시 지정하며, SELECT 내에서 사용할 수 있습니다. 프로시저는 반환값 없이 CALL로 호출하며, OUT 매개변수로 결과를 전달할 수 있습니다.',
+      en: 'Functions must specify a return type with RETURNS and can be used in SELECT. Procedures have no return value, are called with CALL, and can pass results through OUT parameters.',
+    },
+  },
+  {
+    id: 'ox-33',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'PostgreSQL에서 함수(Function) 안에서 COMMIT과 ROLLBACK을 실행할 수 있다.',
+      en: 'In PostgreSQL, you can execute COMMIT and ROLLBACK inside a function.',
+    },
+    answer: false,
+    explanation: {
+      ko: 'PostgreSQL에서 트랜잭션 제어(COMMIT/ROLLBACK)는 프로시저(PROCEDURE)에서만 가능합니다. 함수(FUNCTION)에서는 트랜잭션 제어를 할 수 없습니다.',
+      en: 'In PostgreSQL, transaction control (COMMIT/ROLLBACK) is only allowed in procedures. Functions cannot control transactions.',
+    },
+  },
+  {
+    id: 'ox-34',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'PostgreSQL에서 IMMUTABLE로 선언된 함수는 인덱스 생성 시 사용할 수 있다.',
+      en: 'In PostgreSQL, functions declared as IMMUTABLE can be used in index creation.',
+    },
+    answer: true,
+    explanation: {
+      ko: 'IMMUTABLE 함수는 같은 입력에 항상 같은 결과를 반환하므로, 인덱스 표현식에 사용할 수 있습니다. STABLE이나 VOLATILE 함수는 인덱스에 사용할 수 없습니다.',
+      en: 'IMMUTABLE functions always return the same result for the same input, so they can be used in index expressions. STABLE or VOLATILE functions cannot be used in indexes.',
+    },
+  },
+  {
+    id: 'ox-35',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'MySQL에서 함수 생성 시 DETERMINISTIC 또는 NOT DETERMINISTIC을 명시하지 않아도 된다.',
+      en: 'In MySQL, you can create a function without specifying DETERMINISTIC or NOT DETERMINISTIC.',
+    },
+    answer: false,
+    explanation: {
+      ko: 'MySQL에서는 binary logging 설정에 따라 DETERMINISTIC, NO SQL, 또는 READS SQL DATA 중 하나를 명시해야 합니다. 명시하지 않으면 에러가 발생할 수 있습니다.',
+      en: 'In MySQL, depending on binary logging settings, you must specify DETERMINISTIC, NO SQL, or READS SQL DATA. Omitting it may cause errors.',
+    },
+  },
+  {
+    id: 'ox-36',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'SECURITY DEFINER로 선언된 PostgreSQL 함수는 호출자(caller)의 권한이 아닌 생성자(owner)의 권한으로 실행된다.',
+      en: 'A PostgreSQL function declared with SECURITY DEFINER runs with the owner\'s privileges, not the caller\'s.',
+    },
+    answer: true,
+    explanation: {
+      ko: 'SECURITY DEFINER 함수는 함수를 생성한 사용자(owner)의 권한으로 실행됩니다. 이를 통해 일반 사용자가 직접 접근할 수 없는 테이블에 대해 제한된 작업을 수행할 수 있게 합니다.',
+      en: 'SECURITY DEFINER functions run with the owner\'s privileges. This allows regular users to perform limited operations on tables they cannot directly access.',
+    },
+  },
+  {
+    id: 'ox-37',
+    category: 'functions-procedures',
+    statement: {
+      ko: 'PostgreSQL에서 RETURNS TABLE을 사용한 함수는 FROM 절에서 테이블처럼 사용할 수 있다.',
+      en: 'In PostgreSQL, functions using RETURNS TABLE can be used in FROM clause like a table.',
+    },
+    answer: true,
+    explanation: {
+      ko: 'RETURNS TABLE 함수는 여러 행을 반환하며, SELECT * FROM function_name(args) 형태로 테이블처럼 사용할 수 있습니다.',
+      en: 'RETURNS TABLE functions return multiple rows and can be used like a table with SELECT * FROM function_name(args).',
+    },
+  },
 ];
 
 // ─── Multiple Choice Questions ───
@@ -786,6 +867,109 @@ export const mcQuestions: MCQuestion[] = [
       en: 'Hash Sharding distributes data evenly, but due to hash function characteristics, range queries (BETWEEN, >, <) must query all shards.',
     },
   },
+  // Functions & Procedures
+  {
+    id: 'mc-17',
+    category: 'functions-procedures',
+    question: {
+      ko: '다음 중 PostgreSQL 함수의 휘발성(Volatility) 분류가 아닌 것은?',
+      en: 'Which of the following is NOT a PostgreSQL function volatility category?',
+    },
+    choices: {
+      ko: ['IMMUTABLE', 'STABLE', 'VOLATILE', 'DETERMINISTIC'],
+      en: ['IMMUTABLE', 'STABLE', 'VOLATILE', 'DETERMINISTIC'],
+    },
+    answerIndex: 3,
+    explanation: {
+      ko: 'PostgreSQL의 함수 휘발성 분류는 IMMUTABLE, STABLE, VOLATILE 세 가지입니다. DETERMINISTIC은 MySQL에서 사용하는 키워드입니다.',
+      en: 'PostgreSQL function volatility categories are IMMUTABLE, STABLE, and VOLATILE. DETERMINISTIC is a MySQL keyword.',
+    },
+  },
+  {
+    id: 'mc-18',
+    category: 'functions-procedures',
+    question: {
+      ko: 'PostgreSQL에서 프로시저를 호출하는 올바른 구문은?',
+      en: 'What is the correct syntax to call a procedure in PostgreSQL?',
+    },
+    choices: {
+      ko: ['SELECT my_procedure()', 'EXEC my_procedure()', 'CALL my_procedure()', 'RUN my_procedure()'],
+      en: ['SELECT my_procedure()', 'EXEC my_procedure()', 'CALL my_procedure()', 'RUN my_procedure()'],
+    },
+    answerIndex: 2,
+    explanation: {
+      ko: 'PostgreSQL (PG 11+)과 MySQL 모두 프로시저는 CALL 문으로 호출합니다. SELECT는 함수 호출에 사용됩니다.',
+      en: 'Both PostgreSQL (PG 11+) and MySQL call procedures using CALL. SELECT is used for function calls.',
+    },
+  },
+  {
+    id: 'mc-19',
+    category: 'functions-procedures',
+    question: {
+      ko: '다음 중 함수(Function)와 프로시저(Procedure)의 차이로 올바른 것은?',
+      en: 'Which of the following correctly describes the difference between functions and procedures?',
+    },
+    choices: {
+      ko: ['함수는 트랜잭션 제어가 가능하다', '프로시저는 SELECT 절에서 호출할 수 있다', '함수는 반드시 값을 반환해야 한다', '프로시저는 매개변수를 가질 수 없다'],
+      en: ['Functions can control transactions', 'Procedures can be called in SELECT clause', 'Functions must return a value', 'Procedures cannot have parameters'],
+    },
+    answerIndex: 2,
+    explanation: {
+      ko: '함수는 RETURNS 절을 통해 반드시 값을 반환해야 합니다. 트랜잭션 제어는 프로시저에서만 가능하고, SELECT에서의 호출도 함수만 가능합니다.',
+      en: 'Functions must return a value through the RETURNS clause. Transaction control is only available in procedures, and only functions can be called in SELECT.',
+    },
+  },
+  {
+    id: 'mc-20',
+    category: 'functions-procedures',
+    question: {
+      ko: 'PostgreSQL에서 RETURNS TABLE을 사용하는 함수의 특징으로 올바른 것은?',
+      en: 'What is correct about PostgreSQL functions using RETURNS TABLE?',
+    },
+    choices: {
+      ko: ['단일 스칼라 값만 반환 가능', '여러 행을 반환하며 FROM 절에서 사용 가능', 'CALL로만 호출 가능', 'LANGUAGE sql로만 작성 가능'],
+      en: ['Can only return a single scalar value', 'Returns multiple rows and can be used in FROM clause', 'Can only be called with CALL', 'Can only be written in LANGUAGE sql'],
+    },
+    answerIndex: 1,
+    explanation: {
+      ko: 'RETURNS TABLE 함수는 여러 행을 반환하며, SELECT * FROM function_name(args) 형태로 테이블처럼 FROM 절에서 사용할 수 있습니다.',
+      en: 'RETURNS TABLE functions return multiple rows and can be used in FROM clause like a table: SELECT * FROM function_name(args).',
+    },
+  },
+  {
+    id: 'mc-21',
+    category: 'functions-procedures',
+    question: {
+      ko: '다음 중 PostgreSQL 매개변수 모드로 지원되지 않는 것은?',
+      en: 'Which parameter mode is NOT supported in PostgreSQL?',
+    },
+    choices: {
+      ko: ['IN', 'OUT', 'INOUT', 'REF'],
+      en: ['IN', 'OUT', 'INOUT', 'REF'],
+    },
+    answerIndex: 3,
+    explanation: {
+      ko: 'PostgreSQL은 IN, OUT, INOUT, VARIADIC 매개변수 모드를 지원합니다. REF는 PostgreSQL에서 지원하지 않는 모드입니다.',
+      en: 'PostgreSQL supports IN, OUT, INOUT, and VARIADIC parameter modes. REF is not a supported mode in PostgreSQL.',
+    },
+  },
+  {
+    id: 'mc-22',
+    category: 'functions-procedures',
+    question: {
+      ko: 'PostgreSQL에서 동적 SQL 실행 시 SQL 인젝션을 방지하기 위해 사용하는 함수는?',
+      en: 'Which function prevents SQL injection when executing dynamic SQL in PostgreSQL?',
+    },
+    choices: {
+      ko: ['CONCAT()', 'REPLACE()', 'format(%I)', 'CAST()'],
+      en: ['CONCAT()', 'REPLACE()', 'format(%I)', 'CAST()'],
+    },
+    answerIndex: 2,
+    explanation: {
+      ko: 'format() 함수의 %I 서식은 식별자를 안전하게 이스케이프합니다. 문자열 연결(||)이나 CONCAT()으로 식별자를 조합하면 SQL 인젝션 위험이 있습니다.',
+      en: 'The format() function with %I safely escapes identifiers. Concatenating identifiers with || or CONCAT() creates SQL injection risks.',
+    },
+  },
 ];
 
 // ─── Term Matching Sets ───
@@ -1015,6 +1199,61 @@ export const matchingSets: MatchingSet[] = [
       {
         term: { ko: 'AP 시스템', en: 'AP System' },
         definition: { ko: '가용성 + 분할 내성 (일관성 희생)', en: 'Availability + Partition Tolerance (sacrifice consistency)' },
+      },
+    ],
+  },
+  // Functions & Procedures
+  {
+    id: 'match-10',
+    category: 'functions-procedures',
+    title: { ko: '함수 vs 프로시저 비교 매칭', en: 'Function vs Procedure Comparison' },
+    pairs: [
+      {
+        term: { ko: 'Function (함수)', en: 'Function' },
+        definition: { ko: '값을 반환하며 SELECT에서 호출 가능', en: 'Returns a value, callable in SELECT' },
+      },
+      {
+        term: { ko: 'Procedure (프로시저)', en: 'Procedure' },
+        definition: { ko: 'CALL로 호출하며 트랜잭션 제어 가능', en: 'Called with CALL, supports transaction control' },
+      },
+      {
+        term: { ko: 'RETURNS TABLE', en: 'RETURNS TABLE' },
+        definition: { ko: '여러 행을 반환하는 테이블 반환 함수', en: 'Table-returning function with multiple rows' },
+      },
+      {
+        term: { ko: 'OUT 매개변수', en: 'OUT Parameter' },
+        definition: { ko: '프로시저/함수에서 결과를 돌려주는 출력 인자', en: 'Output argument returning results from procedure/function' },
+      },
+      {
+        term: { ko: 'SECURITY DEFINER', en: 'SECURITY DEFINER' },
+        definition: { ko: '생성자(owner) 권한으로 함수 실행', en: 'Execute function with owner privileges' },
+      },
+    ],
+  },
+  {
+    id: 'match-11',
+    category: 'functions-procedures',
+    title: { ko: 'PostgreSQL 휘발성 분류 매칭', en: 'PostgreSQL Volatility Categories' },
+    pairs: [
+      {
+        term: { ko: 'IMMUTABLE', en: 'IMMUTABLE' },
+        definition: { ko: '항상 같은 결과 반환, 인덱스 사용 가능', en: 'Always same result, can be used in indexes' },
+      },
+      {
+        term: { ko: 'STABLE', en: 'STABLE' },
+        definition: { ko: '같은 트랜잭션 내 같은 결과 보장', en: 'Same result guaranteed within a transaction' },
+      },
+      {
+        term: { ko: 'VOLATILE', en: 'VOLATILE' },
+        definition: { ko: '매번 결과가 다를 수 있음 (기본값)', en: 'Result may vary each call (default)' },
+      },
+      {
+        term: { ko: 'DETERMINISTIC (MySQL)', en: 'DETERMINISTIC (MySQL)' },
+        definition: { ko: 'MySQL에서 같은 입력 → 같은 결과 명시', en: 'MySQL: same input → same result declaration' },
+      },
+      {
+        term: { ko: 'STRICT', en: 'STRICT' },
+        definition: { ko: 'NULL 입력 시 함수 미실행, NULL 반환', en: 'Skip execution on NULL input, return NULL' },
       },
     ],
   },

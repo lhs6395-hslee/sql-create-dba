@@ -79,7 +79,7 @@ export default function LevelCard({ config }: LevelCardProps) {
   }
 
   return (
-    <Link href={`/levels/${config.id}`}>
+    <Link href={`/database/levels/${config.id}`}>
       <Card className="relative overflow-hidden group cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1">
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient} transition-all`} />
         <CardContent className="relative p-6 flex flex-col items-center text-center space-y-3">
